@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>くくめくり</title>
+<style>
+:root{
+  --bg:#EAF7F5; --panel:#ffffff; --topbg:#d5efeb;
+  --ink:#3C2415; --sub:#7a685f;
+  --accent:#4DBCBC; --hero:#F7931E;
+  --card:#e7efee; --cardline:#d3e2e0;
+  --ok:#0f8a2b; --ng:#e0453a; --miss:#cfcfcf; --gold:#ffd166;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent}
+html,body{margin:0; height:100%; overflow:hidden}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"Hiragino Maru Gothic ProN","Yu Gothic Medium","Noto Sans JP",system-ui,sans-serif;
+  font-variant-numeric:tabular-nums;
+}
+#app{height:100dvh; display:flex; flex-direction:column; padding-bottom:env(safe-area-inset-bottom)}
+header{background:var(--topbg); padding:6px 16px; flex:none; display:flex; align-items:center; gap:10px; flex-wrap:wrap}
+h1{font-size:18px; margin:0; letter-spacing:.06em}
+.spacer{flex:1}
+.hd{font-size:12px; color:var(--sub); letter-spacing:.08em}
+.pill{
+  background:#fff; color:var(--ink); border:2px solid transparent;
+  border-radius:999px; padding:7px 13px; font-size:15px; font-weight:900;
+  cursor:pointer; font-family:inherit; line-height:1;
+}
+.pill.on{background:var(--accent); color:#fff}
+.pill.cleared::after{content:"✓"; margin-left:4px; color:var(--ok); font-size:13px}
+.pill.on.cleared::after{color:#fff}
+/* ばんめんの おおきさ（3だんかい）は だん の pill と 色を分ける */
+.pill.lv{font-size:14px; padding:6px 12px}
+.pill.lv.on{background:var(--hero); color:#fff}
+.iconbtn{background:#fff; border:0; border-radius:12px; cursor:pointer; padding:0; width:38px; height:38px; font-size:17px}
+
+main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-items:center}
+
+/* ⚠️ ばんめんは かならず 正方形。以前 max-width で幅だけを削っていたため、
+   ウィンドウが縦長のときに 高さ100%のまま幅だけ縮んで 絵が縦に つぶれていた（2026-09-07 修正）。
+   幅の上限は max-height で かける＝高さが縮めば aspect-ratio が幅も一緒に縮める。 */
+.boardWrap{flex:none; align-self:center; height:100%; max-height:56vw; aspect-ratio:1/1; position:relative}
+#board{
+  /* --n（1辺のマス数）・--gap・--rad・--fs・--bgsize は render() が JS から入れる */
+  --n:10; --gap:3px; --rad:6px; --fs:clamp(11px,3.1vh,34px); --bgsize:1000% 1000%;
+  width:100%; height:100%; background:#fff; border-radius:14px; padding:6px;
+  display:grid; gap:var(--gap); touch-action:none; user-select:none; transition:gap .5s ease;
+}
+.cell{
+  border:0; border-radius:var(--rad); background:var(--card); color:var(--ink);
+  font-family:inherit; font-weight:800; font-size:var(--fs);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  padding:0; box-shadow:inset 0 -2px 0 var(--cardline);
+  transition:background .12s, color .12s, box-shadow .12s;
+}
+/* めくれたマス：下の絵が見える */
+.cell.open{
+  background-image:var(--art); background-size:var(--bgsize);
+  background-color:#fff; color:transparent; box-shadow:none;
+}
+/* おてつき：灰色のしみが残る */
+.cell.miss{background:var(--miss); color:transparent; box-shadow:none}
+.cell.shake{animation:shake .22s}
+@keyframes shake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)}}
+.cell.pop{animation:pop .28s ease}
+@keyframes pop{0%{transform:scale(.82)} 100%{transform:scale(1)}}
+#board.done{gap:0}
+#board.done .cell{border-radius:0; transition:background .55s, color .55s, box-shadow .55s}
+
+.panel{flex:1; min-width:0; display:flex; flex-direction:column; gap:10px}
+.card{background:var(--panel); border-radius:14px; padding:10px 14px}
+.lbl{font-size:clamp(12px,2.1vh,20px); color:var(--sub); letter-spacing:.08em; margin-bottom:4px}
+.big{font-size:clamp(20px,4.8vh,48px); font-weight:900; line-height:1.15}
+.big .dan{color:var(--hero)}
+
+/* 3×1＝？ の 九九のならび（3れつ）＝「こたえの帯」 */
+.steps{display:grid; grid-template-columns:repeat(3,1fr); gap:5px; margin-top:6px}
+.step{
+  background:#f1f5f4; color:var(--sub); border-radius:9px; padding:4px 4px;
+  font-size:clamp(12px,2.2vh,22px); font-weight:900; position:relative;
+  display:flex; align-items:baseline; justify-content:center; white-space:nowrap;
+  transition:opacity .35s ease, background .35s ease;
+}
+.step .v{min-width:1.7em; text-align:center}
+/* ぜんぶ見つけた こたえは 帯から消える＝のこりの集合だけが見えるようにする */
+.step.gone{background:transparent; opacity:.16}
+
+.countline{display:flex; align-items:baseline; gap:14px; flex-wrap:wrap}
+.num{font-size:clamp(18px,3.6vh,36px); font-weight:900}
+.num.bad{color:var(--ng)}
+.hintTxt{font-size:clamp(13px,2.4vh,24px); font-weight:900; color:var(--hero); margin-top:6px; min-height:1.2em}
+
+.row{display:flex; gap:8px; flex-wrap:wrap}
+.btn{
+  border:0; border-radius:12px; background:var(--accent); color:#fff;
+  font-family:inherit; font-weight:900; cursor:pointer;
+  padding:9px 16px; font-size:clamp(13px,2.2vh,20px);
+}
+.btn.sub{background:#e4ecea; color:var(--sub)}
+.btn.hint{margin-left:auto; padding:5px 14px; font-size:clamp(11px,1.9vh,17px); background:#f0f2f1; color:#9aa8a5}
+.btn.hint.on{background:#ffe6c7; color:#b4551a}
+.hintline{display:flex; align-items:center; gap:8px}
+
+.collect{display:flex; flex-wrap:wrap; gap:8px; margin-top:4px}
+.mini{width:56px; text-align:center}
+.minipic{
+  width:56px; height:56px; border-radius:8px; background:#f1f5f4 center/contain no-repeat;
+  display:flex; align-items:center; justify-content:center; color:#c3d2cf; font-size:24px; font-weight:900;
+}
+.mini .cap{font-size:10px; color:var(--sub); margin-top:1px}
+
+/* 完成のしらせは 盤面に かぶせない（絵を隠さないため）。右下の「あつめた え」に出す */
+#collectCard{transition:box-shadow .4s}
+#collectCard.hit{box-shadow:0 0 0 3px var(--hero), 0 8px 26px rgba(247,147,30,.35)}
+#doneMsg{display:none}
+#doneMsg.show{display:block; margin:2px 0 8px}
+#doneMsg .t{font-size:clamp(15px,2.7vh,26px); font-weight:900; color:var(--hero); line-height:1.3}
+#doneMsg .k{font-size:clamp(11px,1.8vh,16px); color:var(--sub); margin-top:3px; line-height:1.5}
+/* 帯を かくしているとき、まだ見つけていない数は ？ にする（式は いつも見える） */
+.step.masked{background:#eef3f2}
+.step.masked .v{color:var(--hero)}
+
+@media (max-aspect-ratio:1/1){
+  main{flex-direction:column; overflow:auto}
+  .boardWrap{height:auto; max-height:none; width:100%}
+  .big{font-size:clamp(18px,5.4vw,36px)}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <h1>くくめくり</h1>
+    <span class="hd">ばんめん</span>
+    <div id="lvs" class="row"></div>
+    <div id="dans" class="row"></div>
+    <div class="spacer"></div>
+    <button id="sound" class="iconbtn" title="おと">🔊</button>
+  </header>
+  <main>
+    <div class="boardWrap">
+      <div id="board"></div>
+    </div>
+    <div class="panel">
+      <div class="card">
+        <div class="lbl hintline">
+          <span>めくるのは</span>
+          <button class="btn hint" id="hint" type="button">さくせん</button>
+        </div>
+        <div class="big"><span class="dan" id="danTxt">3</span>のだん の こたえ</div>
+        <div class="steps" id="steps"></div>
+      </div>
+      <div class="card">
+        <div class="lbl">みつけた かず</div>
+        <div class="countline">
+          <span class="num"><span id="cnt">0</span> / <span id="tot">18</span></span>
+          <span class="num bad" id="missTxt"></span>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn sub" id="reset">はじめから</button>
+        <button class="btn sub" id="again">ばんめん を つくりなおす</button>
+      </div>
+      <div class="card" id="collectCard" style="flex:1; min-height:0; overflow:auto">
+        <div class="lbl" id="collectLbl">あつめた え</div>
+        <div id="doneMsg"><div class="t" id="bt"></div><div class="k" id="bk"></div></div>
+        <div class="collect" id="collect"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+/* @pure-start ------------------------------------------------------------ */
+/* ばんめんの3だんかい。盤面が小さいほど こたえの数も減る＝さがす範囲が せまくなる。
+   art＝絵のマス数 ＝ 9こたえ × per ＋ hole（わざと あける穴）
+   band:true＝こたえの帯を出しっぱなしにする（はじめ・まんなか）。ボスだけ かくせる。 */
+const LEVELS = [
+  {key:"easy", label:"はじめ",   size:6,  per:2, hole:4, band:true },
+  {key:"mid",  label:"まんなか", size:8,  per:3, hole:7, band:true },
+  {key:"boss", label:"ボス",     size:10, per:4, hole:9, band:false},
+];
+const LV = {};
+for(const l of LEVELS) LV[l.key] = l;
+function artCount(l){ return 9*l.per + l.hole; }
+
+/* 絵の定義。on[size] は「絵があるマス」の番号（0〜size*size-1）。build_art.py が画像から作る。 */
+/* ART-START */
+const ART = {
+  2:{
+    6:{name:"うさぎ", file:"art/easy/rabbit.png", on:[
+      1, 2, 3, 4, 7, 8, 9, 10, 14, 15, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    8:{name:"ケーキ", file:"art/mid/cake.png", on:[
+      10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36,
+      37, 38, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
+    10:{name:"きょうりゅう", file:"art/boss/dino.png", on:[
+      0, 1, 2, 3, 4, 5, 6, 20, 21, 22, 23, 30, 31, 32, 33, 34, 35, 36, 38, 39,
+      40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58, 63, 64, 65,
+      66, 73, 74, 75, 76]},
+  },
+  3:{
+    6:{name:"ねこ", file:"art/easy/cat.png", on:[
+      1, 2, 3, 4, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 31,
+      32, 33]},
+    8:{name:"アイス", file:"art/mid/icecream.png", on:[
+      0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20, 21, 26, 27,
+      28, 29, 34, 35, 36, 37, 42, 43, 44, 45, 51, 52, 59, 60]},
+    10:{name:"ロケット", file:"art/boss/rocket.png", on:[
+      4, 5, 13, 14, 15, 16, 23, 24, 25, 26, 33, 34, 35, 36, 43, 44, 45, 46, 52, 53,
+      54, 55, 56, 62, 63, 64, 65, 66, 67, 72, 73, 74, 75, 76, 77, 82, 83, 84, 85, 86,
+      87, 92, 94, 95, 97]},
+  },
+  4:{
+    6:{name:"くま", file:"art/easy/bear.png", on:[
+      1, 2, 3, 4, 7, 8, 9, 10, 13, 14, 15, 16, 20, 21, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    8:{name:"ティーカップ", file:"art/mid/teacup.png", on:[
+      10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35,
+      36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
+    10:{name:"ドラゴン", file:"art/boss/dragon.png", on:[
+      13, 14, 16, 21, 23, 24, 25, 26, 28, 31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43,
+      44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 63, 64, 65, 66, 73, 74, 75, 76, 77,
+      83, 84, 85, 86, 87]},
+  },
+  5:{
+    6:{name:"ペンギン", file:"art/easy/penguin.png", on:[
+      2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    8:{name:"はなたば", file:"art/mid/bouquet.png", on:[
+      3, 4, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33,
+      34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 51, 52, 59, 60]},
+    10:{name:"ロボット", file:"art/boss/robot.png", on:[
+      4, 5, 13, 14, 15, 16, 22, 23, 24, 25, 26, 27, 33, 34, 35, 36, 43, 44, 45, 46,
+      52, 53, 54, 55, 56, 57, 62, 63, 64, 65, 66, 67, 73, 74, 75, 76, 77, 83, 84, 85,
+      86, 93, 94, 95, 96]},
+  },
+  6:{
+    6:{name:"ゾウ", file:"art/easy/elephant.png", on:[
+      2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 26, 27,
+      32, 33]},
+    8:{name:"ききゅう", file:"art/mid/balloon.png", on:[
+      2, 3, 4, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29,
+      30, 33, 34, 35, 36, 37, 42, 43, 44, 45, 51, 52, 59, 60]},
+    10:{name:"おしろ", file:"art/boss/castle.png", on:[
+      24, 25, 33, 34, 35, 41, 42, 43, 44, 45, 46, 47, 48, 51, 52, 53, 54, 55, 56, 57,
+      58, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75, 76, 77, 78, 81, 82, 83,
+      84, 85, 86, 87, 88]},
+  },
+  7:{
+    6:{name:"パンダ", file:"art/easy/panda.png", on:[
+      1, 4, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    8:{name:"かんむり", file:"art/mid/crown.png", on:[
+      11, 12, 17, 19, 20, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
+      38, 39, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
+    10:{name:"サメ", file:"art/boss/shark.png", on:[
+      0, 1, 2, 3, 4, 24, 25, 31, 32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45,
+      46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61, 62, 63, 64, 65, 66,
+      67, 68, 69, 74, 75]},
+  },
+  8:{
+    6:{name:"いぬ", file:"art/easy/dog.png", on:[
+      1, 2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    8:{name:"かいがら", file:"art/mid/shell.png", on:[
+      10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35,
+      36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
+    10:{name:"スポーツカー", file:"art/boss/car.png", on:[
+      24, 25, 26, 27, 28, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48,
+      49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 71,
+      72, 73, 74, 75, 76]},
+  },
+  9:{
+    6:{name:"ひよこ", file:"art/easy/chick.png", on:[
+      2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    8:{name:"カメラ", file:"art/mid/camera.png", on:[
+      11, 12, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37,
+      38, 39, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
+    10:{name:"オオカミ", file:"art/boss/wolf.png", on:[
+      2, 12, 13, 14, 15, 16, 22, 23, 24, 25, 26, 32, 33, 34, 35, 36, 42, 43, 44, 45,
+      46, 52, 53, 54, 55, 62, 63, 64, 65, 72, 73, 74, 75, 76, 77, 82, 83, 84, 85, 86,
+      87, 93, 94, 95, 97]},
+  },
+};
+/* ART-END */
+function answersOf(n){ const a=[]; for(let k=1;k<=9;k++) a.push(n*k); return a; }
+function dummiesOf(n){
+  const a=[];
+  for(let v=1; v<=n*9; v++) if(v % n !== 0) a.push(v);
+  return a;
+}
+function shuffled(arr, rnd){
+  const a=arr.slice();
+  for(let i=a.length-1;i>0;i--){ const j=Math.floor(rnd()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+/* 同じ数がとなり合うのをほぐす（同じマス集合の中だけで入れかえるので中身は変わらない）
+   size＝1辺のマス数。となりの判定に使う。 */
+function deCluster(nums, idxs, rnd, size, tries=600){
+  const set = new Set(idxs);
+  const neighbors = (i)=>{
+    const r = Math.floor(i/size), c = i%size, o = [];
+    if(c>0) o.push(i-1); if(c<size-1) o.push(i+1);
+    if(r>0) o.push(i-size); if(r<size-1) o.push(i+size);
+    return o.filter(j=>set.has(j));
+  };
+  const bad = (i)=> neighbors(i).some(j=>nums[j]===nums[i]);
+  for(let t=0;t<tries;t++){
+    const conflicts = idxs.filter(bad);
+    if(!conflicts.length) break;
+    const i = conflicts[Math.floor(rnd()*conflicts.length)];
+    const j = idxs[Math.floor(rnd()*idxs.length)];
+    if(nums[i] === nums[j]) continue;
+    [nums[i], nums[j]] = [nums[j], nums[i]];
+    if(bad(i) || bad(j)) [nums[i], nums[j]] = [nums[j], nums[i]];
+  }
+  return nums;
+}
+/* 盤面をつくる：絵のマスのうち 9こたえ×per だけが正解。
+   のこりの hole マスは絵の上だけどダミー＝「絵の形」から正解の場所を読ませないための穴。
+   絵の外には その段のこたえを絶対に置かない。 */
+function buildBoard(n, on, rnd, size, per){
+  const total = size*size;
+  const onSet = new Set(on);
+  const ans = answersOf(n);
+  const nums = new Array(total).fill(0);
+  const slots = shuffled(on, rnd);
+  const vals = [];
+  for(const v of ans) for(let k=0;k<per;k++) vals.push(v);
+  shuffled(vals, rnd).forEach((v,i)=>{ nums[slots[i]] = v; });
+  const dum = dummiesOf(n);
+  let bag = [];
+  const pick = ()=>{ if(!bag.length) bag = shuffled(dum, rnd); return bag.pop(); };
+  for(let i=ans.length*per; i<slots.length; i++) nums[slots[i]] = pick();  // 絵の上の穴
+  const off = [];
+  for(let i=0;i<total;i++){ if(!onSet.has(i)){ off.push(i); nums[i] = pick(); } }
+  deCluster(nums, on, rnd, size);
+  deCluster(nums, off, rnd, size);
+  return nums;
+}
+/* めくるべきマス（絵の中で こたえが置かれたところ）。毎回ちがう */
+function goalCells(nums, on, n){ return on.filter(i => nums[i] % n === 0); }
+/* タップの判定。その段のこたえなら めくれる／ちがえば おてつき */
+function tapKind(v, n){ return (v % n === 0) ? 'ok' : 'miss'; }
+/* こたえごとに「ぜんぶ見つけたか」。3を per こ全部めくったら 3 が帯から消える */
+function foundNumbers(nums, opened, n){
+  const need = {}, got = {};
+  for(let i=0;i<nums.length;i++){
+    const v = nums[i];
+    if(v % n !== 0) continue;
+    need[v] = (need[v]||0)+1;
+    if(opened.has(i)) got[v] = (got[v]||0)+1;
+  }
+  const out = new Set();
+  for(const k in need) if(got[k] === need[k]) out.add(+k);
+  return out;
+}
+/* ※「つぎのめあて（未発見の最小のこたえに枠を出す）」は 2026-09-07 に廃止した。
+   順番は問わない設計なのに UI が「つぎは3だよ」と順番を指示していたため。足しなおさないこと。 */
+function isComplete(opened, goal){
+  for(const i of goal) if(!opened.has(i)) return false;
+  return true;
+}
+/* @pure-end -------------------------------------------------------------- */
+
+/* ---- おと（Web Audio・合成音のみ） ---- */
+let soundOn = true, ctx = null;
+function getCtx(){
+  const C = window.AudioContext || window.webkitAudioContext;
+  if(!C) return null;
+  if(!ctx) ctx = new C();
+  if(ctx.state === 'suspended') ctx.resume();
+  return ctx;
+}
+function beep({freq=880, dur=.08, type='sine', gain=.03, when=0}){
+  if(!soundOn) return;
+  const c = getCtx(); if(!c) return;
+  const t = c.currentTime + when;
+  const osc = c.createOscillator(), amp = c.createGain();
+  osc.type = type; osc.frequency.setValueAtTime(freq, t);
+  amp.gain.setValueAtTime(.0001, t);
+  amp.gain.exponentialRampToValueAtTime(gain, t + .01);
+  amp.gain.exponentialRampToValueAtTime(.0001, t + dur);
+  osc.connect(amp); amp.connect(c.destination);
+  osc.start(t); osc.stop(t + dur + .02);
+}
+const sOpen  = () => beep({freq:1250, dur:.04, type:'triangle', gain:.02});
+const sMiss  = () => beep({freq:180,  dur:.13, type:'square',   gain:.014});
+const sFound = () => { [880,1320].forEach((f,i)=> beep({freq:f, dur:.11, gain:.03, when:i*.09})); };
+const sDone  = () => { [880,1100,1320,1760].forEach((f,i)=> beep({freq:f, dur:.15, gain:.035, when:i*.10})); };
+
+/* ---- じょうたい ---- */
+/* v2 から「どのレベルで完成させたか」も覚える（キーは "easy:3" のかたち）。
+   v1（段の番号だけ）が残っていたら ボス で完成させたものとして引きつぐ。 */
+const KEY = 'kuku-mekuri-v2', KEY_V1 = 'kuku-mekuri-v1';
+let cleared = new Set();
+try{
+  const raw = localStorage.getItem(KEY);
+  if(raw) cleared = new Set(JSON.parse(raw));
+  else cleared = new Set(JSON.parse(localStorage.getItem(KEY_V1)||'[]').map(n=>'boss:'+n));
+}catch(e){}
+function saveCleared(){ try{ localStorage.setItem(KEY, JSON.stringify([...cleared])); }catch(e){} }
+
+const DANS = Object.keys(ART).map(Number).sort((a,b)=>a-b);
+const state = {};
+let dan = DANS.includes(3) ? 3 : DANS[0];
+let lv = 'easy';            /* さいしょは いちばん小さい盤面から */
+let bossBand = false;       /* ボスのときだけ「さくせん」で帯を出したり かくしたり できる */
+
+function L(){ return LV[lv]; }
+function bandOn(){ return L().band || bossBand; }
+function skey(){ return lv + ':' + dan; }
+
+const boardEl = document.getElementById('board');
+const cellEls = [];
+let builtSize = 0;
+/* 盤面の大きさが変わったときだけ マスを作りなおす */
+function buildCells(size){
+  if(builtSize === size) return;
+  builtSize = size;
+  boardEl.innerHTML = '';
+  cellEls.length = 0;
+  boardEl.style.gridTemplateColumns = 'repeat('+size+',1fr)';
+  boardEl.style.gridTemplateRows    = 'repeat('+size+',1fr)';
+  boardEl.style.setProperty('--n', size);
+  boardEl.style.setProperty('--gap', (30/size).toFixed(2)+'px');
+  boardEl.style.setProperty('--rad', (60/size).toFixed(2)+'px');
+  boardEl.style.setProperty('--fs', 'clamp(11px,'+(31/size).toFixed(2)+'vh,'+Math.round(340/size)+'px)');
+  boardEl.style.setProperty('--bgsize', (size*100)+'% '+(size*100)+'%');
+  for(let i=0;i<size*size;i++){
+    const b = document.createElement('button');
+    b.className = 'cell'; b.dataset.i = i; b.type='button';
+    /* めくったとき、絵のどこが見えるかを1回だけ決めておく */
+    b.style.backgroundPosition = ((i%size)/(size-1)*100).toFixed(4)+'% '+(Math.floor(i/size)/(size-1)*100).toFixed(4)+'%';
+    boardEl.appendChild(b); cellEls.push(b);
+  }
+}
+
+function makeState(n, l){
+  const on = ART[n][l.size].on;
+  const nums = buildBoard(n, on, Math.random, l.size, l.per);
+  return { nums, on, goal: goalCells(nums, on, n), opened:new Set(), missed:new Set(), done:false };
+}
+function cur(){ const k = skey(); if(!state[k]) state[k] = makeState(dan, L()); return state[k]; }
+
+function paintCell(i){
+  const s = cur(), el = cellEls[i];
+  el.classList.toggle('open', s.opened.has(i) || (s.done && !s.missed.has(i)));
+  el.classList.toggle('miss', s.missed.has(i));
+}
+function updateCounts(){
+  const s = cur();
+  document.getElementById('cnt').textContent = s.opened.size;
+  document.getElementById('tot').textContent = s.goal.length;
+  document.getElementById('missTxt').textContent = s.missed.size ? 'おてつき '+s.missed.size+'こ' : '';
+}
+function updateSteps(){
+  const s = cur();
+  const found = foundNumbers(s.nums, s.opened, dan);
+  const band = bandOn();
+  document.getElementById('steps').innerHTML = answersOf(dan).map((v,i)=>{
+    const got = found.has(v);
+    const show = band || got;                /* 自分でめくった数は かくしていても見える */
+    return '<span class="step'+(got?' gone':'')+(show?'':' masked')
+      +'"><span class="k">'+dan+'×'+(i+1)+'</span>＝<span class="v">'
+      +(show?v:'？')+'</span></span>';
+  }).join('');
+  return found;
+}
+function updateHint(){
+  const b = document.getElementById('hint');
+  b.style.display = L().band ? 'none' : '';   /* はじめ・まんなか は 帯ON固定 */
+  b.classList.toggle('on', bandOn());
+}
+function render(){
+  const l = L(), s = cur(), art = ART[dan][l.size];   /* 同じ段でも レベルごとに絵がちがう */
+  buildCells(l.size);
+  boardEl.style.setProperty('--art', "url('"+art.file+"')");
+  document.getElementById('danTxt').textContent = dan;
+  for(let i=0;i<s.nums.length;i++){
+    cellEls[i].textContent = s.nums[i];
+    paintCell(i);
+  }
+  boardEl.classList.toggle('done', s.done);
+  updateCounts(); updateSteps(); updateHint();
+  document.querySelectorAll('#lvs .pill').forEach(p=>{
+    p.classList.toggle('on', p.dataset.lv === lv);
+  });
+  document.querySelectorAll('#dans .pill').forEach(p=>{
+    p.classList.toggle('on', +p.dataset.n === dan);
+    p.classList.toggle('cleared', cleared.has(lv+':'+(+p.dataset.n)));
+  });
+  document.getElementById('collectLbl').textContent = 'あつめた え（'+l.label+'）';
+  const msg = document.getElementById('doneMsg'), cc = document.getElementById('collectCard');
+  if(s.done){
+    const perfect = s.missed.size === 0;
+    document.getElementById('bt').textContent = perfect ? (art.name+' かんせい！') : (art.name+' が でた');
+    document.getElementById('bk').textContent = perfect
+      ? 'めくったのは ぜんぶ '+dan+'のだん の こたえ（'+answersOf(dan).join('・')+'）'
+      : 'おてつき '+s.missed.size+'こ。はいいろ の ところは '+dan+'のだん の こたえ じゃ なかったよ';
+    msg.classList.add('show'); cc.classList.add('hit');
+  } else { msg.classList.remove('show'); cc.classList.remove('hit'); }
+  renderCollect();
+}
+function renderCollect(){
+  const size = L().size;
+  document.getElementById('collect').innerHTML = DANS.map(n=>{
+    const a = ART[n][size];
+    if(!cleared.has(lv+':'+n)) return '<div class="mini"><div class="minipic">？</div><div class="cap">'+n+'のだん</div></div>';
+    return '<div class="mini"><div class="minipic" style="background-image:url(\''+a.file+'\')"></div><div class="cap">'+a.name+'</div></div>';
+  }).join('');
+}
+
+function finish(){
+  const s = cur();
+  s.done = true;
+  if(s.missed.size === 0){ cleared.add(lv+':'+dan); saveCleared(); }
+  sDone();
+  setTimeout(render, 150);
+}
+
+function tap(i){
+  const s = cur();
+  if(s.done) return;
+  if(s.opened.has(i) || s.missed.has(i)) return;
+  const kind = tapKind(s.nums[i], dan);
+  const before = foundNumbers(s.nums, s.opened, dan);
+  if(kind === 'ok'){
+    s.opened.add(i); paintCell(i);
+    cellEls[i].classList.remove('pop'); void cellEls[i].offsetWidth; cellEls[i].classList.add('pop');
+    const after = updateSteps();
+    if(after.size > before.size) sFound(); else sOpen();
+  }else{
+    s.missed.add(i); paintCell(i); sMiss();
+    cellEls[i].classList.remove('shake'); void cellEls[i].offsetWidth; cellEls[i].classList.add('shake');
+    updateSteps();
+  }
+  updateCounts(); updateHint();
+  if(isComplete(s.opened, s.goal)) finish();
+}
+
+boardEl.addEventListener('pointerdown', e=>{
+  const el = e.target.closest ? e.target.closest('.cell') : null;
+  if(!el) return;
+  e.preventDefault();
+  tap(+el.dataset.i);
+});
+
+const lvsEl = document.getElementById('lvs');
+LEVELS.forEach(l=>{
+  const b = document.createElement('button');
+  b.className='pill lv'; b.dataset.lv=l.key; b.textContent = l.label; b.type='button';
+  b.onclick = ()=>{ lv = l.key; render(); };
+  lvsEl.appendChild(b);
+});
+const dansEl = document.getElementById('dans');
+DANS.forEach(n=>{
+  const b = document.createElement('button');
+  b.className='pill'; b.dataset.n=n; b.textContent = n+'のだん'; b.type='button';
+  b.onclick = ()=>{ dan = n; render(); };
+  dansEl.appendChild(b);
+});
+document.getElementById('reset').onclick = ()=>{
+  const s = cur(); s.opened.clear(); s.missed.clear(); s.done = false; render();
+};
+document.getElementById('again').onclick = ()=>{ state[skey()] = makeState(dan, L()); render(); };
+document.getElementById('hint').onclick = ()=>{ bossBand = !bossBand; updateHint(); updateSteps(); };
+document.getElementById('sound').onclick = (e)=>{
+  soundOn = !soundOn; e.currentTarget.textContent = soundOn ? '🔊' : '🔇';
+};
+render();
+</script>
+</body>
+</html>

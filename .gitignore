@@ -1,0 +1,7 @@
+# 公開するのは 単一HTML版だけ。部屋版(Next.js)・バックアップ・作業用は出さない
+app-src/
+_backup/
+.DS_Store
+# 古い絵の残骸（前の8種・確認用プレビュー）は公開しない
+art/*.png
+art/*/_preview_*.png
