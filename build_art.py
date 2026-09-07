@@ -142,12 +142,15 @@ def main():
     lines.append("};")
     block = "/* ART-START */\n" + "\n".join(lines) + "\n/* ART-END */"
 
-    # 部屋版（Next.js）は 10x10 ひとつだけ＝ボスの絵。書き方がちがう（export つき・file は /art/ から始まる）
-    boss = [l for l in LEVELS if l[0] == "boss"][0][1]
-    tslines = ["export const ART: Record<number, { name: string; file: string; on: number[] }> = {"]
+    # 部屋版（Next.js）も 段 → 盤面サイズ の入れ子。単一HTML版とちがうのは
+    # export が付くことと、file が公開フォルダ基準で / から始まることだけ（2026-09-07 レベル移植）
+    tslines = ["export const ART: Record<number, Record<number, { name: string; file: string; on: number[] }>> = {"]
     for dan in ready:
-        name, path, on = art[dan][boss]
-        tslines.append(f'  {dan}: {{ name: "{name}", file: "/{path}", on: [\n    {fmt(on, 4)}] }},')
+        tslines.append(f"  {dan}: {{")
+        for _, size, _, _ in LEVELS:
+            name, path, on = art[dan][size]
+            tslines.append(f'    {size}: {{ name: "{name}", file: "/{path}", on: [\n      {fmt(on, 6)}] }},')
+        tslines.append("  },")
     tslines.append("};")   # DANS は ART-END の外にあるので触らない
     tsblock = "/* ART-START */\n" + "\n".join(tslines) + "\n/* ART-END */"
 
