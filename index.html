@@ -35,6 +35,14 @@ h1{font-size:18px; margin:0; letter-spacing:.06em}
 /* ばんめんの おおきさ（3だんかい）は だん の pill と 色を分ける */
 .pill.lv{font-size:14px; padding:6px 12px}
 .pill.lv.on{background:var(--hero); color:#fff}
+/* まだ ひらいていない ばんめん */
+.pill.lv.locked{background:#e7ecea; color:#a9b6b3; cursor:not-allowed}
+.pill.lv.locked::after{content:"🔒"; margin-left:4px; font-size:12px}
+/* 九九モード＝レベルとは別のスイッチ。むらさきで 役割をもう1つ分けている */
+.pill.kk{border:2px solid #d8ccf2; color:#5b3fa8}
+.pill.kk.on{background:#7b5fd0; color:#fff; border-color:#7b5fd0}
+.lockMsg{font-size:13px; font-weight:900; color:var(--hero); opacity:0; transition:opacity .25s}
+.lockMsg.show{opacity:1}
 .iconbtn{background:#fff; border:0; border-radius:12px; cursor:pointer; padding:0; width:38px; height:38px; font-size:17px}
 
 main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-items:center}
@@ -119,6 +127,18 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
 #doneMsg.show{display:block; margin:2px 0 8px}
 #doneMsg .t{font-size:clamp(15px,2.7vh,26px); font-weight:900; color:var(--hero); line-height:1.3}
 #doneMsg .k{font-size:clamp(11px,1.8vh,16px); color:var(--sub); margin-top:3px; line-height:1.5}
+/* 九九モード：こたえの帯のかわりに ひらがなの唱えを 1つだけ出す（一覧にはしない）。
+   こたえの読みは 取り去ってあるので、おぼえていない子は 声に出して唱えるしかない。 */
+.yomiBox{display:none; align-items:center; gap:10px; margin-top:6px}
+.yomiBox.on{display:flex}
+.yomi{
+  flex:1; min-width:0; background:#f3eefb; color:#5b3fa8; border-radius:12px;
+  padding:8px 14px; font-size:clamp(20px,5.2vh,52px); font-weight:900;
+  letter-spacing:.04em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.yomi.done{font-size:clamp(18px,4vh,38px)}
+.yomi .dots{color:#b7a6dd; margin-left:.15em}
+.btn.nx{background:#7b5fd0; flex:none}
 /* 帯を かくしているとき、まだ見つけていない数は ？ にする（式は いつも見える） */
 .step.masked{background:#eef3f2}
 .step.masked .v{color:var(--hero)}
@@ -136,7 +156,9 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
     <h1>くくめくり</h1>
     <span class="hd">ばんめん</span>
     <div id="lvs" class="row"></div>
+    <button id="kuku" class="pill kk" type="button">九九モード</button>
     <div id="dans" class="row"></div>
+    <span class="lockMsg" id="lockMsg"></span>
     <div class="spacer"></div>
     <button id="sound" class="iconbtn" title="おと">🔊</button>
   </header>
@@ -152,6 +174,10 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
         </div>
         <div class="big"><span class="dan" id="danTxt">3</span>のだん の こたえ</div>
         <div class="steps" id="steps"></div>
+        <div class="yomiBox" id="yomiBox">
+          <div class="yomi" id="yomiTxt"></div>
+          <button class="btn nx" id="yomiNext" type="button">つぎ →</button>
+        </div>
       </div>
       <div class="card">
         <div class="lbl">みつけた かず</div>
@@ -188,108 +214,220 @@ const LV = {};
 for(const l of LEVELS) LV[l.key] = l;
 function artCount(l){ return 9*l.per + l.hole; }
 
+/* 九九モードは レベルとは別のスイッチ。盤面の作り（マス数・こたえの数・穴）は レベルのまま、
+   絵と ヒントの出しかたが変わる。絵のセットのキーは "easy" / "easy-kuku" のかたち。 */
+const KUKU = '-kuku';
+const ART_KEYS = LEVELS.map(l=>l.key).concat(LEVELS.map(l=>l.key+KUKU));
+function artKeyOf(lvKey, kuku){ return kuku ? lvKey + KUKU : lvKey; }
+function baseLvOf(key){ return key.endsWith(KUKU) ? key.slice(0, -KUKU.length) : key; }
+function lvOfArtKey(key){ return LV[baseLvOf(key)]; }
+
 /* 絵の定義。on[size] は「絵があるマス」の番号（0〜size*size-1）。build_art.py が画像から作る。 */
 /* ART-START */
 const ART = {
   2:{
-    6:{name:"うさぎ", file:"art/easy/rabbit.png", on:[
+    "easy":{name:"うさぎ", file:"art/easy/rabbit.png", on:[
       1, 2, 3, 4, 7, 8, 9, 10, 14, 15, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
       33, 34]},
-    8:{name:"ケーキ", file:"art/mid/cake.png", on:[
+    "mid":{name:"ケーキ", file:"art/mid/cake.png", on:[
       10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36,
       37, 38, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
-    10:{name:"きょうりゅう", file:"art/boss/dino.png", on:[
+    "boss":{name:"きょうりゅう", file:"art/boss/dino.png", on:[
       0, 1, 2, 3, 4, 5, 6, 20, 21, 22, 23, 30, 31, 32, 33, 34, 35, 36, 38, 39,
       40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 51, 53, 54, 55, 56, 57, 58, 63, 64, 65,
       66, 73, 74, 75, 76]},
+    "easy-kuku":{name:"ユニコーン", file:"art/easy-kuku/unicorn.png", on:[
+      1, 2, 7, 8, 9, 13, 14, 15, 16, 19, 20, 21, 22, 23, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku":{name:"ペガサス", file:"art/mid-kuku/pegasus.png", on:[
+      9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33,
+      34, 35, 36, 37, 38, 40, 41, 43, 44, 45, 46, 47, 53, 55]},
+    "boss-kuku":{name:"ヤマタノオロチ", file:"art/boss-kuku/orochi.png", on:[
+      14, 15, 22, 23, 24, 26, 27, 31, 33, 35, 36, 41, 42, 43, 44, 45, 46, 47, 48, 52,
+      53, 54, 55, 56, 57, 61, 62, 63, 64, 65, 66, 67, 72, 73, 74, 75, 76, 77, 82, 83,
+      84, 85, 86, 87, 88]},
   },
   3:{
-    6:{name:"ねこ", file:"art/easy/cat.png", on:[
+    "easy":{name:"ねこ", file:"art/easy/cat.png", on:[
       1, 2, 3, 4, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 31,
       32, 33]},
-    8:{name:"アイス", file:"art/mid/icecream.png", on:[
+    "mid":{name:"アイス", file:"art/mid/icecream.png", on:[
       0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 18, 19, 20, 21, 26, 27,
       28, 29, 34, 35, 36, 37, 42, 43, 44, 45, 51, 52, 59, 60]},
-    10:{name:"ロケット", file:"art/boss/rocket.png", on:[
+    "boss":{name:"ロケット", file:"art/boss/rocket.png", on:[
       4, 5, 13, 14, 15, 16, 23, 24, 25, 26, 33, 34, 35, 36, 43, 44, 45, 46, 53, 54,
       55, 56, 57, 62, 63, 64, 65, 66, 67, 72, 73, 74, 75, 76, 77, 82, 83, 84, 85, 86,
       87, 92, 94, 95, 97]},
+    "easy-kuku":{name:"ようせい", file:"art/easy-kuku/fairy.png", on:[
+      2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27,
+      32, 33]},
+    "mid-kuku":{name:"フェニックス", file:"art/mid-kuku/phoenix.png", on:[
+      8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29,
+      30, 34, 35, 36, 37, 42, 43, 44, 45, 50, 51, 52, 53, 60]},
+    "boss-kuku":{name:"スフィンクス", file:"art/boss-kuku/sphinx.png", on:[
+      12, 13, 14, 22, 23, 24, 25, 31, 32, 33, 34, 35, 42, 43, 44, 45, 52, 53, 54, 55,
+      56, 57, 58, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
+      81, 82, 83, 84, 85]},
   },
   4:{
-    6:{name:"くま", file:"art/easy/bear.png", on:[
+    "easy":{name:"くま", file:"art/easy/bear.png", on:[
       1, 2, 3, 4, 7, 8, 9, 10, 13, 14, 15, 16, 20, 21, 25, 26, 27, 28, 31, 32,
       33, 34]},
-    8:{name:"ティーカップ", file:"art/mid/teacup.png", on:[
+    "mid":{name:"ティーカップ", file:"art/mid/teacup.png", on:[
       10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35,
       36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
-    10:{name:"ドラゴン", file:"art/boss/dragon.png", on:[
+    "boss":{name:"ドラゴン", file:"art/boss/dragon.png", on:[
       13, 14, 16, 21, 23, 24, 25, 26, 28, 31, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43,
       44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 63, 64, 65, 66, 73, 74, 75, 76, 77,
       83, 84, 85, 86, 87]},
+    "easy-kuku":{name:"にんぎょ", file:"art/easy-kuku/mermaid.png", on:[
+      2, 3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 19, 20, 21, 22, 26, 27, 28, 32, 33,
+      34, 35]},
+    "mid-kuku":{name:"グリフォン", file:"art/mid-kuku/griffin.png", on:[
+      8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30,
+      33, 34, 35, 36, 37, 42, 43, 44, 45, 49, 50, 51, 52, 53]},
+    "boss-kuku":{name:"ワイバーン", file:"art/boss-kuku/wyvern.png", on:[
+      11, 14, 15, 18, 21, 22, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35, 37, 38, 41, 42,
+      43, 44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 63, 64, 65, 66, 73, 74, 75, 76,
+      77, 78, 83, 86, 87]},
   },
   5:{
-    6:{name:"ペンギン", file:"art/easy/penguin.png", on:[
+    "easy":{name:"ペンギン", file:"art/easy/penguin.png", on:[
       2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
       33, 34]},
-    8:{name:"はなたば", file:"art/mid/bouquet.png", on:[
+    "mid":{name:"はなたば", file:"art/mid/bouquet.png", on:[
       3, 4, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33,
       34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 51, 52, 59, 60]},
-    10:{name:"ロボット", file:"art/boss/robot.png", on:[
+    "boss":{name:"ロボット", file:"art/boss/robot.png", on:[
       4, 5, 13, 14, 15, 16, 22, 23, 24, 25, 26, 27, 33, 34, 35, 36, 43, 44, 45, 46,
       52, 53, 54, 55, 56, 57, 62, 63, 64, 65, 66, 67, 72, 73, 74, 75, 76, 83, 84, 85,
       86, 93, 94, 95, 96]},
+    "easy-kuku":{name:"こりゅう", file:"art/easy-kuku/babydrago.png", on:[
+      2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku":{name:"てんぐ", file:"art/mid-kuku/tengu.png", on:[
+      4, 9, 10, 11, 12, 13, 17, 18, 19, 20, 21, 25, 26, 27, 28, 29, 30, 33, 34, 35,
+      36, 37, 38, 42, 43, 44, 45, 46, 50, 51, 52, 53, 58, 61]},
+    "boss-kuku":{name:"クラーケン", file:"art/boss-kuku/kraken.png", on:[
+      14, 15, 16, 24, 25, 26, 27, 32, 34, 35, 36, 42, 43, 44, 45, 46, 47, 51, 52, 53,
+      54, 55, 56, 57, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68, 72, 73, 74, 75, 76, 78,
+      82, 85, 86, 88, 95]},
   },
   6:{
-    6:{name:"ゾウ", file:"art/easy/elephant.png", on:[
+    "easy":{name:"ゾウ", file:"art/easy/elephant.png", on:[
       2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 26, 27,
       32, 33]},
-    8:{name:"ききゅう", file:"art/mid/balloon.png", on:[
+    "mid":{name:"ききゅう", file:"art/mid/balloon.png", on:[
       2, 3, 4, 9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29,
       30, 34, 35, 36, 37, 38, 42, 43, 44, 45, 51, 52, 59, 60]},
-    10:{name:"おしろ", file:"art/boss/castle.png", on:[
+    "boss":{name:"おしろ", file:"art/boss/castle.png", on:[
       24, 25, 33, 34, 35, 41, 42, 43, 44, 45, 46, 47, 48, 51, 52, 53, 54, 55, 56, 57,
       58, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75, 76, 77, 78, 81, 82, 83,
       84, 85, 86, 87, 88]},
+    "easy-kuku":{name:"かっぱ", file:"art/easy-kuku/kappa.png", on:[
+      2, 3, 4, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku":{name:"うみへび", file:"art/mid-kuku/seasnake.png", on:[
+      9, 10, 11, 17, 18, 22, 23, 25, 26, 27, 28, 31, 33, 34, 35, 36, 37, 39, 41, 42,
+      43, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 58, 60, 61]},
+    "boss-kuku":{name:"ゴーレム", file:"art/boss-kuku/golem.png", on:[
+      14, 15, 22, 23, 24, 25, 26, 27, 31, 32, 33, 34, 35, 36, 37, 41, 42, 43, 44, 45,
+      46, 47, 48, 51, 52, 53, 54, 55, 56, 58, 61, 62, 63, 64, 65, 66, 67, 68, 72, 73,
+      76, 82, 83, 86, 87]},
   },
   7:{
-    6:{name:"パンダ", file:"art/easy/panda.png", on:[
+    "easy":{name:"パンダ", file:"art/easy/panda.png", on:[
       1, 4, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
       33, 34]},
-    8:{name:"かんむり", file:"art/mid/crown.png", on:[
+    "mid":{name:"かんむり", file:"art/mid/crown.png", on:[
       11, 12, 17, 19, 20, 22, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37,
       38, 39, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
-    10:{name:"サメ", file:"art/boss/shark.png", on:[
+    "boss":{name:"サメ", file:"art/boss/shark.png", on:[
       0, 1, 2, 3, 4, 24, 25, 31, 32, 33, 34, 35, 38, 39, 40, 41, 42, 43, 44, 45,
       46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61, 62, 63, 64, 65, 66,
       67, 68, 69, 74, 75]},
+    "easy-kuku":{name:"つばさのねこ", file:"art/easy-kuku/wingcat.png", on:[
+      3, 6, 7, 8, 9, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 25, 26, 27, 28, 31,
+      32, 34]},
+    "mid-kuku":{name:"きりん", file:"art/mid-kuku/kirin.png", on:[
+      9, 10, 11, 16, 17, 18, 19, 22, 23, 25, 26, 27, 28, 29, 30, 31, 33, 34, 35, 36,
+      37, 38, 39, 41, 42, 43, 44, 45, 46, 49, 50, 52, 54, 58]},
+    "boss-kuku":{name:"ケンタウロス", file:"art/boss-kuku/centaur.png", on:[
+      3, 4, 12, 13, 14, 17, 22, 23, 24, 26, 27, 32, 33, 34, 35, 36, 37, 43, 44, 47,
+      53, 54, 55, 56, 57, 62, 63, 64, 65, 66, 67, 68, 72, 74, 75, 76, 77, 78, 81, 82,
+      84, 85, 87, 91, 94]},
   },
   8:{
-    6:{name:"いぬ", file:"art/easy/dog.png", on:[
+    "easy":{name:"いぬ", file:"art/easy/dog.png", on:[
       1, 2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 25, 26, 27, 28, 31, 32,
       33, 34]},
-    8:{name:"かいがら", file:"art/mid/shell.png", on:[
+    "mid":{name:"かいがら", file:"art/mid/shell.png", on:[
       10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35,
       36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
-    10:{name:"スポーツカー", file:"art/boss/car.png", on:[
+    "boss":{name:"スポーツカー", file:"art/boss/car.png", on:[
       24, 25, 26, 27, 28, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48,
       49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 71,
       72, 73, 74, 75, 76]},
+    "easy-kuku":{name:"きんのとり", file:"art/easy-kuku/goldbird.png", on:[
+      1, 2, 6, 7, 8, 9, 12, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 25, 26, 27,
+      31, 33]},
+    "mid-kuku":{name:"げんぶ", file:"art/mid-kuku/genbu.png", on:[
+      4, 11, 12, 17, 18, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36, 37,
+      38, 41, 42, 43, 44, 45, 46, 48, 49, 51, 52, 54, 55, 59]},
+    "boss-kuku":{name:"らいじん", file:"art/boss-kuku/raijin.png", on:[
+      13, 14, 16, 21, 22, 23, 24, 25, 26, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44,
+      45, 46, 47, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 72, 73, 74,
+      75, 76, 77, 82, 86]},
   },
   9:{
-    6:{name:"ひよこ", file:"art/easy/chick.png", on:[
+    "easy":{name:"ひよこ", file:"art/easy/chick.png", on:[
       2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
       33, 34]},
-    8:{name:"カメラ", file:"art/mid/camera.png", on:[
+    "mid":{name:"カメラ", file:"art/mid/camera.png", on:[
       11, 12, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37,
       38, 40, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
-    10:{name:"オオカミ", file:"art/boss/wolf.png", on:[
+    "boss":{name:"オオカミ", file:"art/boss/wolf.png", on:[
       2, 12, 13, 14, 15, 16, 22, 23, 24, 25, 26, 32, 33, 34, 35, 36, 42, 43, 44, 45,
       46, 52, 53, 54, 55, 62, 63, 64, 65, 72, 73, 74, 75, 76, 77, 82, 83, 84, 85, 86,
       87, 93, 94, 95, 97]},
+    "easy-kuku":{name:"こびと", file:"art/easy-kuku/kobito.png", on:[
+      2, 3, 4, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku":{name:"ゆきおとこ", file:"art/mid-kuku/yeti.png", on:[
+      10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 34,
+      35, 36, 37, 38, 42, 43, 44, 45, 50, 51, 52, 53, 58, 61]},
+    "boss-kuku":{name:"ふうじん", file:"art/boss-kuku/fujin.png", on:[
+      13, 14, 15, 16, 17, 22, 23, 24, 25, 26, 27, 28, 32, 33, 34, 35, 36, 37, 38, 42,
+      43, 44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 62, 63, 64, 65, 66, 67, 72, 73,
+      74, 75, 76, 77, 87]},
   },
 };
 /* ART-END */
+const DANS = Object.keys(ART).map(Number).sort((a,b)=>a-b);
 function answersOf(n){ const a=[]; for(let k=1;k<=9;k++) a.push(n*k); return a; }
+
+/* 九九の唱え方から こたえの読みを 取り去ったもの（教科書どおりの言い方）。
+   「にいちが（2）」「にご（じゅう）」のように、こたえが1けたのときだけ「〜が」で終わる。 */
+const YOMI = {
+  2:['にいちが','ににんが','にさんが','にしが','にご','にろく','にしち','にはち','にく'],
+  3:['さんいちが','さんにが','さざんが','さんし','さんご','さぶろく','さんしち','さんぱ','さんく'],
+  4:['しいちが','しにが','しさん','しし','しご','しろく','しち','しは','しく'],
+  5:['ごいちが','ごに','ごさん','ごし','ごご','ごろく','ごしち','ごは','ごっく'],
+  6:['ろくいちが','ろくに','ろくさん','ろくし','ろくご','ろくろく','ろくしち','ろくは','ろっく'],
+  7:['しちいちが','しちに','しちさん','しちし','しちご','しちろく','しちしち','しちは','しちく'],
+  8:['はちいちが','はちに','はちさん','はちし','はちご','はちろく','はちしち','はっぱ','はっく'],
+  9:['くいちが','くに','くさん','くし','くご','くろく','くしち','くは','くく'],
+};
+/* cur（いま出している唱えの番号 0〜8。まだ何も出していないときは -1）の つぎを返す。
+   ⚠️ もう ぜんぶ見つけた こたえの唱えは とばす＝出しても意味がないので。
+   ぐるっと まわって 出すものが1つもなければ -1。 */
+function nextYomi(cur, found, n){
+  for(let k=1;k<=9;k++){
+    const j = (cur + k + 9) % 9;
+    if(!found.has(n*(j+1))) return j;
+  }
+  return -1;
+}
 function dummiesOf(n){
   const a=[];
   for(let v=1; v<=n*9; v++) if(v % n !== 0) a.push(v);
@@ -367,6 +505,26 @@ function isComplete(opened, goal){
   for(const i of goal) if(!opened.has(i)) return false;
   return true;
 }
+/* そのレベルで「かんせい」させた段。九九モードで かんせいさせたぶんも 同じレベルとして数える
+   （九九モードのほうが むずかしいのに ロックが外れないのは おかしいので）。 */
+function clearedDansOf(cleared, lvKey){
+  const out = new Set();
+  for(const k of cleared){
+    const i = k.lastIndexOf(':');
+    if(i > 0 && baseLvOf(k.slice(0, i)) === lvKey) out.add(+k.slice(i+1));
+  }
+  return out;
+}
+/* ばんめんのロック。1つ前のレベルの 8だん ぜんぶを かんせいさせると ひらく。
+   {open: ひらいているか, prev: 1つ前のレベルの名前, left: あと何だんで ひらくか} */
+function lockOf(lvKey, cleared){
+  const i = LEVELS.findIndex(l => l.key === lvKey);
+  if(i <= 0) return {open:true, prev:null, left:0};
+  const prev = LEVELS[i-1];
+  const got = clearedDansOf(cleared, prev.key);
+  const left = DANS.filter(n => !got.has(n)).length;
+  return {open:left === 0, prev:prev.label, left};
+}
 /* @pure-end -------------------------------------------------------------- */
 
 /* ---- おと（Web Audio・合成音のみ） ---- */
@@ -407,10 +565,10 @@ try{
 }catch(e){}
 function saveCleared(){ try{ localStorage.setItem(KEY, JSON.stringify([...cleared])); }catch(e){} }
 
-const DANS = Object.keys(ART).map(Number).sort((a,b)=>a-b);
 const state = {};
 let dan = DANS.includes(3) ? 3 : DANS[0];
 let lv = 'easy';            /* さいしょは いちばん小さい盤面から */
+let kuku = false;           /* 九九モード（こたえのかわりに ひらがなの唱えが出る） */
 /* 帯（こたえの一覧）を出すか。レベルごとの はじめの状態は LEVELS の band。
    ボタンを押したぶんだけ ここに覚えて、そのレベルの はじめの状態より優先する。
    ボス＝ふだん見えない→「さくせん」で出す／はじめ・まんなか＝ふだん見える→「かくす」で消す
@@ -419,7 +577,10 @@ const bandPick = {};
 
 function L(){ return LV[lv]; }
 function bandOn(){ return lv in bandPick ? bandPick[lv] : L().band; }
-function skey(){ return lv + ':' + dan; }
+/* 絵のセットのキー。盤面と記録は「絵のセット × 段」ごとに 別々に持つので、
+   ふつうのモードで作りかけの盤面は 九九モードに入っても そのまま残る。 */
+function akey(){ return artKeyOf(lv, kuku); }
+function skey(){ return akey() + ':' + dan; }
 
 const boardEl = document.getElementById('board');
 const cellEls = [];
@@ -446,12 +607,12 @@ function buildCells(size){
   }
 }
 
-function makeState(n, l){
-  const on = ART[n][l.size].on;
+function makeState(n, l, key){
+  const on = artOf(n, key).on;
   const nums = buildBoard(n, on, Math.random, l.size, l.per);
-  return { nums, on, goal: goalCells(nums, on, n), opened:new Set(), missed:new Set(), done:false };
+  return { nums, on, goal: goalCells(nums, on, n), opened:new Set(), missed:new Set(), done:false, yomi:0 };
 }
-function cur(){ const k = skey(); if(!state[k]) state[k] = makeState(dan, L()); return state[k]; }
+function cur(){ const k = skey(); if(!state[k]) state[k] = makeState(dan, L(), akey()); return state[k]; }
 
 function paintCell(i){
   const s = cur(), el = cellEls[i];
@@ -467,6 +628,7 @@ function updateCounts(){
 function updateSteps(){
   const s = cur();
   const found = foundNumbers(s.nums, s.opened, dan);
+  updateYomi(found);
   const band = bandOn();
   document.getElementById('steps').innerHTML = answersOf(dan).map((v,i)=>{
     const got = found.has(v);
@@ -477,13 +639,29 @@ function updateSteps(){
   }).join('');
   return found;
 }
+/* 九九モード：いま出す唱えを 1つだけ出す。
+   ⚠️ もう ぜんぶ見つけた こたえの唱えは 出さない＝勝手に つぎへ ずらす。 */
+function updateYomi(found){
+  const box = document.getElementById('yomiBox');
+  box.classList.toggle('on', kuku);
+  document.getElementById('steps').style.display = kuku ? 'none' : '';
+  document.getElementById('hint').style.display  = kuku ? 'none' : '';
+  if(!kuku) return;
+  const s = cur();
+  if(s.yomi >= 0 && found.has(dan*(s.yomi+1))) s.yomi = nextYomi(s.yomi, found, dan);
+  const t = document.getElementById('yomiTxt'), b = document.getElementById('yomiNext');
+  /* 出す唱えが なくなったら 「つぎ」は 消す（残しても押せないし 場所を取るだけ） */
+  t.classList.toggle('done', s.yomi < 0);
+  b.style.display = s.yomi < 0 ? 'none' : '';
+  t.innerHTML = s.yomi < 0 ? 'ぜんぶ みつけた！' : YOMI[dan][s.yomi] + '<span class="dots">…</span>';
+}
 function updateHint(){
   const b = document.getElementById('hint'), on = bandOn();
   b.textContent = on ? 'かくす' : 'さくせん';   /* 押したら どうなるかを そのまま名前にする */
   b.classList.toggle('on', on);
 }
 function render(){
-  const l = L(), s = cur(), art = ART[dan][l.size];   /* 同じ段でも レベルごとに絵がちがう */
+  const l = L(), s = cur(), art = artOf(dan, akey());   /* 段・レベル・九九モード ごとに絵がちがう */
   buildCells(l.size);
   boardEl.style.setProperty('--art', "url('"+art.file+"')");
   document.getElementById('danTxt').textContent = dan;
@@ -495,12 +673,15 @@ function render(){
   updateCounts(); updateSteps(); updateHint();
   document.querySelectorAll('#lvs .pill').forEach(p=>{
     p.classList.toggle('on', p.dataset.lv === lv);
+    p.classList.toggle('locked', !lockOf(p.dataset.lv, cleared).open);
   });
+  document.getElementById('kuku').classList.toggle('on', kuku);
   document.querySelectorAll('#dans .pill').forEach(p=>{
     p.classList.toggle('on', +p.dataset.n === dan);
-    p.classList.toggle('cleared', cleared.has(lv+':'+(+p.dataset.n)));
+    p.classList.toggle('cleared', cleared.has(akey()+':'+(+p.dataset.n)));
   });
-  document.getElementById('collectLbl').textContent = 'あつめた え（'+l.label+'）';
+  document.getElementById('collectLbl').textContent =
+    'あつめた え（'+l.label+(kuku ? '・九九' : '')+'）'+(kuku && !artReady(akey()) ? '　※え は じゅんびちゅう' : '');
   const msg = document.getElementById('doneMsg'), cc = document.getElementById('collectCard');
   if(s.done){
     const perfect = s.missed.size === 0;
@@ -513,10 +694,10 @@ function render(){
   renderCollect();
 }
 function renderCollect(){
-  const size = L().size;
+  const key = akey();
   document.getElementById('collect').innerHTML = DANS.map(n=>{
-    const a = ART[n][size];
-    if(!cleared.has(lv+':'+n)) return '<div class="mini"><div class="minipic">？</div><div class="cap">'+n+'のだん</div></div>';
+    const a = artOf(n, key);
+    if(!cleared.has(key+':'+n)) return '<div class="mini"><div class="minipic">？</div><div class="cap">'+n+'のだん</div></div>';
     return '<div class="mini"><div class="minipic" style="background-image:url(\''+a.file+'\')"></div><div class="cap">'+a.name+'</div></div>';
   }).join('');
 }
@@ -524,7 +705,7 @@ function renderCollect(){
 function finish(){
   const s = cur();
   s.done = true;
-  if(s.missed.size === 0){ cleared.add(lv+':'+dan); saveCleared(); }
+  if(s.missed.size === 0){ cleared.add(akey()+':'+dan); saveCleared(); }
   sDone();
   setTimeout(render, 150);
 }
@@ -556,11 +737,36 @@ boardEl.addEventListener('pointerdown', e=>{
   tap(+el.dataset.i);
 });
 
+/* ロックを おしえる（しかる言い方にしない＝あと何だんで ひらくかを 出すだけ） */
+let lockTimer = null;
+function say(msg){
+  const el = document.getElementById('lockMsg');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(lockTimer);
+  lockTimer = setTimeout(()=> el.classList.remove('show'), 4000);
+}
+function sayLock(k){ say(k.prev+' を ぜんぶ かんせい させると あくよ（あと '+k.left+'だん）'); }
+
+/* 絵のセットが 8だんぶん そろっているか。
+   ⚠️ そろっていないセットに入ると 盤面が作れずに 止まってしまうので、
+      入口の手前で ことわる（絵を足している途中でも アプリは こわれない） */
+function artReady(key){ return DANS.every(n => ART[n] && ART[n][key]); }
+/* まだ描けていない絵は、同じレベルの ふつうの絵で 代わりに出す。
+   ⚠️ 絵を足している途中でも 九九モードで あそべるようにするため。
+      絵がそろえば ここは 何もしなくても 本物に切りかわる（2026-09-10） */
+function artOf(n, key){ return (ART[n] && ART[n][key]) || ART[n][baseLvOf(key)]; }
+
 const lvsEl = document.getElementById('lvs');
 LEVELS.forEach(l=>{
   const b = document.createElement('button');
   b.className='pill lv'; b.dataset.lv=l.key; b.textContent = l.label; b.type='button';
-  b.onclick = ()=>{ lv = l.key; render(); };
+  b.onclick = ()=>{
+    const k = lockOf(l.key, cleared);
+    /* ⚠️ 九九モードでも ロックは そのまま。抜け道にはしない */
+    if(!k.open){ sayLock(k); return; }
+    lv = l.key; render();
+  };
   lvsEl.appendChild(b);
 });
 const dansEl = document.getElementById('dans');
@@ -573,7 +779,13 @@ DANS.forEach(n=>{
 document.getElementById('reset').onclick = ()=>{
   const s = cur(); s.opened.clear(); s.missed.clear(); s.done = false; render();
 };
-document.getElementById('again').onclick = ()=>{ state[skey()] = makeState(dan, L()); render(); };
+document.getElementById('again').onclick = ()=>{ state[skey()] = makeState(dan, L(), akey()); render(); };
+document.getElementById('kuku').onclick = ()=>{ kuku = !kuku; render(); };
+document.getElementById('yomiNext').onclick = ()=>{
+  const s = cur();
+  s.yomi = nextYomi(s.yomi, foundNumbers(s.nums, s.opened, dan), dan);
+  updateSteps();
+};
 document.getElementById('hint').onclick = ()=>{ bandPick[lv] = !bandOn(); updateHint(); updateSteps(); };
 document.getElementById('sound').onclick = (e)=>{
   soundOn = !soundOn; e.currentTarget.textContent = soundOn ? '🔊' : '🔇';
