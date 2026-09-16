@@ -5,10 +5,12 @@ import { readFileSync } from 'node:fs';
 
 const html = readFileSync(new URL('./index.html', import.meta.url), 'utf8');
 const src  = html.match(/\/\* @pure-start[\s\S]*?@pure-end[^\n]*\*\//)[0];
-const NAMES = ['ART','LEVELS','LV','DANS','KUKU','ART_KEYS','artKeyOf','baseLvOf','lvOfArtKey',
+const NAMES = ['ART','LEVELS','LV','DANS','KUKU','KUKU_MODES','ART_KEYS','artKeyOf','baseLvOf','lvOfArtKey',
+  'isKukuKey','kukuModeOf','isOrdered','setLabelOf','artOf','artReady','orderSeq','orderTarget','orderTapKind',
   'artCount','answersOf','dummiesOf','shuffled','deCluster','buildBoard','goalCells','tapKind',
   'foundNumbers','isComplete','YOMI','nextYomi','clearedDansOf','lockOf'];
-const { ART, LEVELS, LV, DANS, KUKU, ART_KEYS, artKeyOf, baseLvOf, lvOfArtKey,
+const { ART, LEVELS, LV, DANS, KUKU, KUKU_MODES, ART_KEYS, artKeyOf, baseLvOf, lvOfArtKey,
+  isKukuKey, kukuModeOf, isOrdered, setLabelOf, artOf, artReady, orderSeq, orderTarget, orderTapKind,
   artCount, answersOf, dummiesOf, shuffled, deCluster, buildBoard, goalCells, tapKind,
   foundNumbers, isComplete, YOMI, nextYomi, clearedDansOf, lockOf } =
   new Function(`${src}; return {${NAMES.join(',')}};`)();
@@ -18,8 +20,8 @@ const neighbors = (i, size)=>{
   if(r>0) o.push(i-size); if(r<size-1) o.push(i+size);
   return o;
 };
-// (段 × 絵のセット6つ) の全組み合わせを回すための小さなヘルパ
-// 絵のセット＝ふつうの3レベル ＋ 九九モードの3レベル
+// (段 × 絵のセット) の全組み合わせを回すための小さなヘルパ
+// 絵のセット＝レベル3つ × （ふつう＋九九モード4しゅるい）で 15（2026-09-16）
 function eachCase(fn){
   for(const n of DANS) for(const key of ART_KEYS) fn(n, lvOfArtKey(key), ART[n][key].on, key);
 }
@@ -39,9 +41,10 @@ test('レベルは3だんかい・数のつじつまが合っている', () => {
   assert.deepEqual(LEVELS.map(l=>l.band), [true,true,false]);
 });
 
-test('2〜9 の 8段ぶん × 絵のセット6つ が そろっている', () => {
+test('2〜9 の 8段ぶん × 絵のセット15 が そろっている', () => {
+  assert.equal(ART_KEYS.length, 15);
   assert.deepEqual(DANS, [2,3,4,5,6,7,8,9]);
-  assert.deepEqual(ART_KEYS, ['easy','mid','boss','easy-kuku','mid-kuku','boss-kuku']);
+  assert.deepEqual(ART_KEYS.slice(0, 6), ['easy','mid','boss','easy-kuku','mid-kuku','boss-kuku']);
   for(const n of DANS){
     assert.deepEqual(Object.keys(ART[n]).sort(), ART_KEYS.slice().sort(), `${n}のだん の絵のセットがそろっていない`);
     for(const key of ART_KEYS){
@@ -52,19 +55,39 @@ test('2〜9 の 8段ぶん × 絵のセット6つ が そろっている', () =>
   }
 });
 
-test('絵のセットのキー：九九モードは レベル名 + "-kuku"', () => {
+test('絵のセットのキー：九九モードは レベル名 + "-kuku"（＋ "-up" / "-down" / "-mix"）', () => {
+  assert.deepEqual(KUKU_MODES.map(m=>m.label), ['自由','上がり','下がり','バラバラ']);
   for(const l of LEVELS){
+    assert.equal(artKeyOf(l.key, null), l.key);
     assert.equal(artKeyOf(l.key, false), l.key);
-    assert.equal(artKeyOf(l.key, true),  l.key + KUKU);
+    assert.equal(artKeyOf(l.key, 'free'), l.key + KUKU);
+    assert.equal(artKeyOf(l.key, 'up'),   l.key + '-kuku-up');
+    assert.equal(artKeyOf(l.key, 'down'), l.key + '-kuku-down');
+    assert.equal(artKeyOf(l.key, 'mix'),  l.key + '-kuku-mix');
+    assert.equal(kukuModeOf(l.key), null);
+    assert.equal(isKukuKey(l.key), false);
+    for(const m of KUKU_MODES){
+      const k = artKeyOf(l.key, m.key);
+      assert.ok(ART_KEYS.includes(k));
+      assert.equal(kukuModeOf(k), m.key);
+      assert.equal(isKukuKey(k), true);
+      assert.equal(baseLvOf(k), l.key);
+      // 九九モードでも 盤面の作り（マス数・こたえの数・穴）は ふつうと同じレベルに従う
+      assert.equal(lvOfArtKey(k), l);
+    }
     assert.equal(baseLvOf(l.key), l.key);
-    assert.equal(baseLvOf(l.key + KUKU), l.key);
-    // 九九モードでも 盤面の作り（マス数・こたえの数・穴）は ふつうと同じレベルに従う
-    assert.equal(lvOfArtKey(l.key + KUKU), l);
     assert.equal(lvOfArtKey(l.key), l);
   }
+  assert.equal(isOrdered('free'), false);
+  assert.equal(isOrdered(null), false);
+  assert.equal(isOrdered('up') && isOrdered('down') && isOrdered('mix'), true);
+  assert.equal(setLabelOf('easy'), 'はじめ');
+  assert.equal(setLabelOf('easy-kuku'), 'はじめ・九九');
+  assert.equal(setLabelOf('mid-kuku-up'), 'まんなか・九九上がり');
+  assert.equal(setLabelOf('boss-kuku-mix'), 'ボス・九九バラバラ');
 });
 
-test('48枚ぜんぶ ちがう絵（同じ絵を使いまわしていない）', () => {
+test('120枚ぜんぶ ちがう絵（同じ絵を使いまわしていない）', () => {
   // 子どもががんばる理由の一つが「何が出てくるんだろう」なので、
   // レベルちがい・九九モードちがいで 同じ絵を出さない（2026-09-07／2026-09-10 ぽこぴぃ指示）
   const all = [];
@@ -80,9 +103,8 @@ test('九九モードの絵は ふつうのモードと まったく別のモチ
   // 九九モードに取り組むインセンティブが「ここでしか会えない絵」なので、使いまわさない
   for(const n of DANS){
     for(const l of LEVELS){
-      const a = ART[n][l.key], b = ART[n][l.key + KUKU];
-      assert.notEqual(a.name, b.name, `${n}のだん ${l.key} で 名前が同じ`);
-      assert.notEqual(a.file, b.file, `${n}のだん ${l.key} で 画像が同じ`);
+      const names = ART_KEYS.filter(k => baseLvOf(k) === l.key).map(k => ART[n][k].name);
+      assert.equal(new Set(names).size, 5, `${n}のだん ${l.key} で 名前が同じ絵がある`);
     }
   }
 });
@@ -351,9 +373,100 @@ test('ロック：まんなかが そろうまで ボスは開かない（はじ
   assert.equal(lockOf('boss', cleared).open, true, '九九モードで そろえたのに 開かない');
 });
 
+/* ---- 九九モード：順番モード（上がり・下がり・バラバラ） ---- */
+
+test('順番モードの並び：上がり・下がりは くり返し、バラバラは 周ごとに 9つ ぜんぶ', () => {
+  let x = 7;
+  const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
+  for(const l of LEVELS){
+    const up = orderSeq('up', l.per, rnd), down = orderSeq('down', l.per, rnd);
+    assert.equal(up.length, 9*l.per);
+    for(let i=0;i<up.length;i++){
+      assert.equal(up[i], i % 9);
+      assert.equal(down[i], 8 - (i % 9));
+    }
+    for(let t=0;t<50;t++){
+      const mix = orderSeq('mix', l.per, rnd);
+      assert.equal(mix.length, 9*l.per);
+      for(let r=0;r<l.per;r++){
+        assert.deepEqual(mix.slice(r*9, r*9+9).sort(), [0,1,2,3,4,5,6,7,8], '1周に 9つの唱えが1回ずつ');
+        if(r > 0) assert.notEqual(mix[r*9], mix[r*9-1], '周のつなぎ目で 同じ唱えが つづいた');
+      }
+    }
+  }
+});
+
+test('順番モード：いまの唱えの こたえ だけ めくれる。最後まで めくれば かんせい', () => {
+  let x = 11;
+  const rnd = () => ((x = (x * 16807) % 2147483647) / 2147483647);
+  eachCase((n, l, on, key) => {
+    const mode = kukuModeOf(key);
+    if(!isOrdered(mode)) return;
+    const nums = buildBoard(n, on, rnd, l.size, l.per);
+    const goal = goalCells(nums, on, n);
+    const seq = orderSeq(mode, l.per, rnd);
+    assert.equal(seq.length, goal.length, '唱えの数と めくる枚数が そろっていない');
+    const opened = [];
+    while(opened.length < seq.length){
+      const t = orderTarget(seq, opened.length, n);
+      // 段のこたえでも 順番ちがいは おてつき
+      const other = answersOf(n).find(v => v !== t);
+      assert.equal(orderTapKind(other, t), 'miss');
+      assert.equal(orderTapKind(t, t), 'ok');
+      // 盤面には いまの こたえが 必ず残っている＝行きづまらない
+      const i = goal.find(j => nums[j] === t && !opened.includes(j));
+      assert.ok(i !== undefined, `${n}のだん ${key} で ${t} が もう残っていない`);
+      opened.push(i);
+    }
+    assert.equal(orderTarget(seq, opened.length, n), -1);
+    assert.equal(orderTapKind(n, -1), 'miss');
+    assert.ok(isComplete(new Set(opened), goal));
+  });
+});
+
+test('順番モード：絵がまだ なくても（代わりの絵で）行きづまらない', () => {
+  // build_art.py が 新しい絵を 作りおわる前でも あそべることを たしかめる
+  for(const n of DANS) for(const l of LEVELS) for(const mode of ['up','down','mix']){
+    const key = artKeyOf(l.key, mode);
+    const on = artOf(n, key).on;
+    const nums = buildBoard(n, on, Math.random, l.size, l.per);
+    const goal = goalCells(nums, on, n);
+    const seq = orderSeq(mode, l.per, Math.random);
+    const opened = [];
+    while(opened.length < seq.length){
+      const t = orderTarget(seq, opened.length, n);
+      const i = goal.find(j => nums[j] === t && !opened.includes(j));
+      assert.ok(i !== undefined, `${n}のだん ${key} で 行きづまった`);
+      opened.push(i);
+    }
+    assert.ok(isComplete(new Set(opened), goal));
+  }
+});
+
+test('絵ができていないセットでも 落ちずに 代わりの絵を出す', () => {
+  const orig = ART[2]['easy-kuku-up'], origFree = ART[2]['easy-kuku'];
+  delete ART[2]['easy-kuku-up'];
+  try{
+    // まず 自由の九九モードの絵
+    assert.equal(artOf(2, 'easy-kuku-up'), ART[2]['easy-kuku']);
+    assert.equal(artReady('easy-kuku-up'), false, 'そろっていないのに そろっている ことになった');
+    // 自由の絵も なければ ふつうの絵
+    delete ART[2]['easy-kuku'];
+    assert.equal(artOf(2, 'easy-kuku-up'), ART[2]['easy']);
+  }finally{
+    if(orig) ART[2]['easy-kuku-up'] = orig;
+    ART[2]['easy-kuku'] = origFree;
+  }
+  assert.equal(artReady('easy'), true);
+  assert.equal(artOf(2, 'mid-kuku-down'), ART[2]['mid-kuku-down']);
+});
+
 test('九九モードは レベルのロックに そのまま従う（抜け道にしない）', () => {
   // 九九モードだからといって ロック中のレベルに入れてはいけない
   assert.equal(lockOf(baseLvOf('mid-kuku'), new Set()).open, false);
   assert.equal(lockOf(baseLvOf('boss-kuku'), new Set()).open, false);
   assert.equal(lockOf(baseLvOf('easy-kuku'), new Set()).open, true);
+  assert.equal(lockOf(baseLvOf('boss-kuku-up'), new Set()).open, false);
+  // 順番モードで そろえた段も 数える
+  assert.equal(clearedDansOf(['easy-kuku-mix:3', 'easy-kuku-up:4', 'mid:5'], 'easy').size, 2);
 });

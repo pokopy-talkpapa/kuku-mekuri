@@ -71,6 +71,9 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
 }
 /* おてつき：灰色のしみが残る */
 .cell.miss{background:var(--miss); color:transparent; box-shadow:none}
+/* 順番モード：じゅんばん ちがいで 灰色に なったあと 番が来て めくった こたえ。
+   絵は 出すが すこし くすませて おてつきが わかるように */
+.cell.open.miss{background-image:var(--art); background-size:var(--bgsize); background-color:#fff; filter:grayscale(.55) brightness(.92)}
 .cell.shake{animation:shake .22s}
 @keyframes shake{0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)}}
 .cell.pop{animation:pop .28s ease}
@@ -121,7 +124,7 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
 .mini .cap{font-size:10px; color:var(--sub); margin-top:1px}
 
 /* 完成のしらせは 盤面に かぶせない（絵を隠さないため）。右下の「あつめた え」に出す */
-#collectCard{transition:box-shadow .4s}
+#collectCard{flex:1; min-height:0; overflow:auto; transition:box-shadow .4s}
 #collectCard.hit{box-shadow:0 0 0 3px var(--hero), 0 8px 26px rgba(247,147,30,.35)}
 #doneMsg{display:none}
 #doneMsg.show{display:block; margin:2px 0 8px}
@@ -139,6 +142,13 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
 .yomi.done{font-size:clamp(18px,4vh,38px)}
 .yomi .dots{color:#b7a6dd; margin-left:.15em}
 .btn.nx{background:#7b5fd0; flex:none}
+/* 順番モード：いま なんしゅうめか */
+.yomiBox .round{flex:none; font-size:14px; font-weight:800; color:#7b5fd0; background:#efe9fb; border-radius:999px; padding:4px 10px}
+/* 九九モードの しゅるい（自由／上がり／下がり／バラバラ） */
+.lvrow{display:contents}
+.kmodes{display:inline-flex; gap:4px; flex-wrap:wrap}
+.pill.km{border:2px solid #d8ccf2; color:#5b3fa8; padding-left:10px; padding-right:10px}
+.pill.km.on{background:#7b5fd0; color:#fff; border-color:#7b5fd0}
 /* 帯を かくしているとき、まだ見つけていない数は ？ にする（式は いつも見える） */
 .step.masked{background:#eef3f2}
 .step.masked .v{color:var(--hero)}
@@ -148,6 +158,67 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
   .boardWrap{height:auto; max-height:none; width:100%}
   .big{font-size:clamp(18px,5.4vw,36px)}
 }
+
+/* ===================== スマホ（2026-09-16） =====================
+   タブレット・PC は そのまま。幅600px以下の たて持ち／高さ500px以下の よこ持ち だけ 変える。
+   ⚠️ .boardWrap の max-height を max-width に かえないこと（上の注意書きを見て） */
+@media (max-aspect-ratio:1/1) and (max-width:600px){
+  /* ヘッダを うすく：題名と「ばんめん」の字は けす。だんは 1行で よこに すべらせる */
+  header{padding:6px 8px; gap:6px}
+  header h1, header .hd{display:none}
+  header .row{gap:5px}
+  /* レベル・九九モードの行は のこりの幅に おさめて 中で おりかえす（音ボタンを ひとりぼっちの行にしない） */
+  .lvrow{display:flex; flex:1 1 0; min-width:0; flex-wrap:wrap; align-items:center; gap:5px}
+  #lvs{display:contents}   /* レベルの pill も 1こずつ おりかえす */
+  header .spacer{display:none}
+  #dans{flex-wrap:nowrap; overflow-x:auto; width:100%; order:5; scrollbar-width:none}
+  #dans::-webkit-scrollbar{display:none}
+  .pill{padding:6px 10px; font-size:14px; flex:none}
+  .pill.lv{font-size:13px; padding:6px 9px}
+  .pill.km{padding:6px 8px; font-size:13px}
+  .lockMsg{width:100%; font-size:12px; order:6}
+  .lockMsg:not(.show){display:none}
+  .iconbtn{width:32px; height:32px; font-size:15px; flex:none}
+
+  /* 「めくるのは」（こたえ・唱え）を 盤面の上に出す＝下まで スクロールしなくても 見える */
+  main{padding:6px 8px 12px; gap:8px; align-items:stretch}
+  .panel{display:contents}
+  .panel > .card:first-child{order:-1; padding:8px 10px}
+  .boardWrap{order:0}
+  .panel > :not(:first-child){order:1}
+  #board{padding:4px; border-radius:12px}
+  /* 数字は マスの はばに あわせる（2けたが はみ出さないように） */
+  .cell{font-size:min(var(--fs), calc((100vw - 32px) / var(--n) * .5))}
+  .big{font-size:20px}
+  .lbl{font-size:12px; margin-bottom:2px}
+  .steps{gap:3px; margin-top:4px}
+  .step{font-size:13px; padding:3px}
+  .yomi{font-size:30px; padding:6px 12px}
+  .yomi.done{font-size:22px}
+  #collectCard{flex:none; overflow:visible}
+}
+
+@media (min-aspect-ratio:1/1) and (max-height:500px){
+  /* よこ持ちのスマホ：ヘッダを 2行までに おさめて、盤面の高さを かせぐ */
+  header{padding:4px 10px; gap:6px}
+  header h1, header .hd{display:none}
+  header .row{gap:4px}
+  .pill, .pill.lv, .pill.km{padding:5px 9px; font-size:13px}
+  .lockMsg:not(.show){display:none}
+  .iconbtn{width:30px; height:30px; font-size:14px}
+  main{padding:4px 10px 8px; gap:10px; align-items:stretch}
+  .boardWrap{max-height:none}
+  #board{padding:3px; border-radius:10px}
+  .panel{overflow-y:auto; gap:6px}
+  .card{padding:6px 10px}
+  .big{font-size:18px}
+  .lbl{font-size:11px; margin-bottom:2px}
+  .step{font-size:12px; padding:2px}
+  .yomi{font-size:24px; padding:4px 10px}
+  .btn{padding:6px 12px; font-size:13px}
+  .num{font-size:18px}
+  #collectCard{flex:none; overflow:visible}
+}
 </style>
 </head>
 <body>
@@ -155,8 +226,12 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
   <header>
     <h1>くくめくり</h1>
     <span class="hd">ばんめん</span>
-    <div id="lvs" class="row"></div>
-    <button id="kuku" class="pill kk" type="button">九九モード</button>
+    <!-- lvrow は ふだんは display:contents（ないのと おなじ）。スマホの たて持ちで 1つの ぎょうに まとめる -->
+    <div class="lvrow">
+      <div id="lvs" class="row"></div>
+      <button id="kuku" class="pill kk" type="button">九九モード</button>
+      <span id="kmodes" class="kmodes" style="display:none"></span>
+    </div>
     <div id="dans" class="row"></div>
     <span class="lockMsg" id="lockMsg"></span>
     <div class="spacer"></div>
@@ -177,6 +252,7 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
         <div class="yomiBox" id="yomiBox">
           <div class="yomi" id="yomiTxt"></div>
           <button class="btn nx" id="yomiNext" type="button">つぎ →</button>
+          <span class="round" id="yomiRound" style="display:none"></span>
         </div>
       </div>
       <div class="card">
@@ -190,7 +266,7 @@ main{flex:1; min-height:0; display:flex; gap:16px; padding:6px 16px 14px; align-
         <button class="btn sub" id="reset">はじめから</button>
         <button class="btn sub" id="again">ばんめん を つくりなおす</button>
       </div>
-      <div class="card" id="collectCard" style="flex:1; min-height:0; overflow:auto">
+      <div class="card" id="collectCard">
         <div class="lbl" id="collectLbl">あつめた え</div>
         <div id="doneMsg"><div class="t" id="bt"></div><div class="k" id="bk"></div></div>
         <div class="collect" id="collect"></div>
@@ -215,12 +291,42 @@ for(const l of LEVELS) LV[l.key] = l;
 function artCount(l){ return 9*l.per + l.hole; }
 
 /* 九九モードは レベルとは別のスイッチ。盤面の作り（マス数・こたえの数・穴）は レベルのまま、
-   絵と ヒントの出しかたが変わる。絵のセットのキーは "easy" / "easy-kuku" のかたち。 */
+   絵と ヒントの出しかたが変わる。絵のセットのキーは "easy" / "easy-kuku" / "easy-kuku-up" のかたち。 */
 const KUKU = '-kuku';
-const ART_KEYS = LEVELS.map(l=>l.key).concat(LEVELS.map(l=>l.key+KUKU));
-function artKeyOf(lvKey, kuku){ return kuku ? lvKey + KUKU : lvKey; }
-function baseLvOf(key){ return key.endsWith(KUKU) ? key.slice(0, -KUKU.length) : key; }
+/* 九九モードの4しゅるい（2026-09-16 ぽこぴぃ指示）。
+   自由＝その段の こたえなら どれを押してもいい（2026-09-10 からの 九九モード）
+   上がり／下がり／バラバラ＝いま出ている 唱えの こたえ しか めくれない。
+   おしり（suf）は 絵のセットのキーに そのまま付く */
+const KUKU_MODES = [
+  {key:'free', label:'自由',     suf:KUKU},
+  {key:'up',   label:'上がり',   suf:KUKU+'-up'},
+  {key:'down', label:'下がり',   suf:KUKU+'-down'},
+  {key:'mix',  label:'バラバラ', suf:KUKU+'-mix'},
+];
+/* 絵のセットのキー。ふつう3つ ＋ 九九モード 4しゅるい×3レベル＝15 */
+const ART_KEYS = LEVELS.map(l=>l.key).concat(KUKU_MODES.flatMap(m => LEVELS.map(l=>l.key+m.suf)));
+/* kuku＝null（または false）なら ふつうのモード。九九モードなら 'free' / 'up' / 'down' / 'mix' */
+function artKeyOf(lvKey, kuku){
+  const m = KUKU_MODES.find(x => x.key === kuku);
+  return m ? lvKey + m.suf : lvKey;
+}
+/* "easy-kuku-up" → "easy"。九九モードでも 盤面の大きさは もとのレベルのまま */
+function baseLvOf(key){ return key.split('-')[0]; }
 function lvOfArtKey(key){ return LV[baseLvOf(key)]; }
+/* 絵のセットのキーから 九九モードの しゅるいを出す。ふつうのモードなら null */
+function kukuModeOf(key){
+  const suf = key.slice(baseLvOf(key).length);
+  const m = KUKU_MODES.find(x => x.suf === suf);
+  return m ? m.key : null;
+}
+function isKukuKey(key){ return kukuModeOf(key) !== null; }
+/* 唱えの じゅんばんを まもらせる モードか（上がり・下がり・バラバラ） */
+function isOrdered(mode){ return mode === 'up' || mode === 'down' || mode === 'mix'; }
+/* 「はじめ・九九上がり」のような よび名（自由は ただの「九九」） */
+function setLabelOf(key){
+  const m = KUKU_MODES.find(x => x.key === kukuModeOf(key));
+  return lvOfArtKey(key).label + (m ? '・九九' + (m.key === 'free' ? '' : m.label) : '');
+}
 
 /* 絵の定義。on[size] は「絵があるマス」の番号（0〜size*size-1）。build_art.py が画像から作る。 */
 /* ART-START */
@@ -240,12 +346,42 @@ const ART = {
       1, 2, 7, 8, 9, 13, 14, 15, 16, 19, 20, 21, 22, 23, 25, 26, 27, 28, 31, 32,
       33, 34]},
     "mid-kuku":{name:"ペガサス", file:"art/mid-kuku/pegasus.png", on:[
-      9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33,
-      34, 35, 36, 37, 38, 40, 41, 43, 44, 45, 46, 47, 53, 55]},
+      9, 10, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 25, 27, 28, 29, 30, 33, 34,
+      35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 53, 55]},
     "boss-kuku":{name:"ヤマタノオロチ", file:"art/boss-kuku/orochi.png", on:[
       14, 15, 22, 23, 24, 26, 27, 31, 33, 35, 36, 41, 42, 43, 44, 45, 46, 47, 48, 52,
       53, 54, 55, 56, 57, 61, 62, 63, 64, 65, 66, 67, 72, 73, 74, 75, 76, 77, 82, 83,
       84, 85, 86, 87, 88]},
+    "easy-kuku-up":{name:"ほし", file:"art/easy-kuku-up/star.png", on:[
+      2, 3, 8, 9, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku-up":{name:"どせい", file:"art/mid-kuku-up/saturn.png", on:[
+      10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+      34, 35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 50, 51, 52]},
+    "boss-kuku-up":{name:"うちゅうひこうし", file:"art/boss-kuku-up/astronaut.png", on:[
+      4, 5, 13, 14, 15, 16, 23, 24, 25, 26, 27, 32, 33, 34, 35, 36, 42, 43, 44, 45,
+      46, 47, 53, 54, 55, 56, 57, 63, 64, 65, 66, 73, 74, 75, 76, 83, 84, 85, 86, 87,
+      92, 93, 94, 96, 97]},
+    "easy-kuku-down":{name:"クラゲ", file:"art/easy-kuku-down/jellyfish.png", on:[
+      2, 3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 24, 25, 26, 27,
+      28, 29]},
+    "mid-kuku-down":{name:"タツノオトシゴ", file:"art/mid-kuku-down/seahorse.png", on:[
+      0, 1, 2, 3, 4, 10, 11, 12, 13, 17, 18, 19, 20, 21, 25, 26, 27, 28, 29, 30,
+      34, 35, 36, 37, 38, 43, 44, 45, 51, 52, 53, 59, 60, 61]},
+    "boss-kuku-down":{name:"せんすいかん", file:"art/boss-kuku-down/submarine.png", on:[
+      12, 13, 23, 24, 33, 34, 35, 41, 42, 43, 44, 45, 46, 47, 48, 51, 52, 53, 54, 55,
+      56, 57, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 71, 72, 73, 74, 75, 76, 77,
+      78, 82, 83, 84, 87]},
+    "easy-kuku-mix":{name:"つみき", file:"art/easy-kuku-mix/blocks.png", on:[
+      2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku-mix":{name:"オルゴール", file:"art/mid-kuku-mix/musicbox.png", on:[
+      2, 3, 4, 5, 10, 11, 12, 13, 18, 19, 20, 21, 22, 26, 27, 28, 29, 33, 34, 35,
+      36, 37, 38, 40, 41, 42, 43, 44, 45, 49, 50, 51, 52, 53]},
+    "boss-kuku-mix":{name:"しんかんせん", file:"art/boss-kuku-mix/shinkansen.png", on:[
+      23, 24, 25, 26, 27, 32, 33, 34, 35, 36, 37, 38, 39, 41, 42, 43, 44, 45, 46, 47,
+      48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 60, 61, 62, 63, 64, 65, 66, 70, 71,
+      72, 73, 74, 75, 82]},
   },
   3:{
     "easy":{name:"ねこ", file:"art/easy/cat.png", on:[
@@ -262,12 +398,42 @@ const ART = {
       2, 3, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27,
       32, 33]},
     "mid-kuku":{name:"フェニックス", file:"art/mid-kuku/phoenix.png", on:[
-      8, 9, 10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29,
+      3, 8, 9, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29,
       30, 34, 35, 36, 37, 42, 43, 44, 45, 50, 51, 52, 53, 60]},
     "boss-kuku":{name:"スフィンクス", file:"art/boss-kuku/sphinx.png", on:[
       12, 13, 14, 22, 23, 24, 25, 31, 32, 33, 34, 35, 42, 43, 44, 45, 52, 53, 54, 55,
       56, 57, 58, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80,
       81, 82, 83, 84, 85]},
+    "easy-kuku-up":{name:"つき", file:"art/easy-kuku-up/moon.png", on:[
+      1, 2, 3, 4, 8, 9, 10, 15, 16, 17, 21, 22, 23, 24, 25, 26, 27, 28, 31, 32,
+      33, 34]},
+    "mid-kuku-up":{name:"ながれぼし", file:"art/mid-kuku-up/shootingstar.png", on:[
+      2, 8, 9, 10, 11, 16, 17, 18, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 34,
+      35, 36, 37, 38, 39, 44, 45, 46, 47, 53, 54, 55, 61, 62]},
+    "boss-kuku-up":{name:"うちゅうステーション", file:"art/boss-kuku-up/station.png", on:[
+      11, 12, 14, 15, 18, 21, 22, 24, 25, 27, 28, 31, 34, 35, 38, 41, 42, 43, 44, 45,
+      46, 47, 48, 51, 52, 53, 54, 55, 56, 57, 58, 61, 64, 65, 68, 71, 72, 74, 75, 78,
+      81, 82, 84, 85, 88]},
+    "easy-kuku-down":{name:"タコ", file:"art/easy-kuku-down/octopus.png", on:[
+      2, 3, 7, 8, 9, 10, 13, 14, 15, 16, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28,
+      31, 34]},
+    "mid-kuku-down":{name:"さんご", file:"art/mid-kuku-down/coral.png", on:[
+      4, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35,
+      36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 51, 52, 59, 60]},
+    "boss-kuku-down":{name:"クジラ", file:"art/boss-kuku-down/whale.png", on:[
+      22, 23, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 37, 38, 40, 41, 42, 43, 44, 45,
+      46, 47, 48, 51, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 71, 73,
+      74, 75, 76, 77, 87]},
+    "easy-kuku-mix":{name:"こま", file:"art/easy-kuku-mix/top.png", on:[
+      3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27,
+      28, 32]},
+    "mid-kuku-mix":{name:"けんだま", file:"art/mid-kuku-mix/kendama.png", on:[
+      3, 5, 6, 9, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28,
+      29, 33, 34, 35, 36, 37, 42, 43, 50, 51, 52, 58, 59, 60]},
+    "boss-kuku-mix":{name:"きかんしゃ", file:"art/boss-kuku-mix/steamloco.png", on:[
+      13, 22, 23, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48, 51, 52,
+      53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75, 76,
+      77, 78, 81, 82, 85]},
   },
   4:{
     "easy":{name:"くま", file:"art/easy/bear.png", on:[
@@ -281,7 +447,7 @@ const ART = {
       44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 63, 64, 65, 66, 73, 74, 75, 76, 77,
       83, 84, 85, 86, 87]},
     "easy-kuku":{name:"にんぎょ", file:"art/easy-kuku/mermaid.png", on:[
-      2, 3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 19, 20, 21, 22, 26, 27, 28, 32, 33,
+      2, 3, 6, 7, 8, 9, 12, 13, 14, 15, 16, 19, 20, 21, 22, 26, 27, 28, 32, 33,
       34, 35]},
     "mid-kuku":{name:"グリフォン", file:"art/mid-kuku/griffin.png", on:[
       8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30,
@@ -290,6 +456,36 @@ const ART = {
       11, 14, 15, 18, 21, 22, 24, 25, 27, 28, 30, 31, 32, 33, 34, 35, 37, 38, 41, 42,
       43, 44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 63, 64, 65, 66, 73, 74, 75, 76,
       77, 78, 83, 86, 87]},
+    "easy-kuku-up":{name:"くも", file:"art/easy-kuku-up/cloud.png", on:[
+      7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+      28, 29]},
+    "mid-kuku-up":{name:"ちきゅう", file:"art/mid-kuku-up/earth.png", on:[
+      9, 10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 34,
+      35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
+    "boss-kuku-up":{name:"じんこうえいせい", file:"art/boss-kuku-up/satellite.png", on:[
+      20, 21, 22, 25, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45,
+      46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 63, 64, 65, 66, 67, 68,
+      69, 73, 74, 75, 84]},
+    "easy-kuku-down":{name:"ウミガメ", file:"art/easy-kuku-down/seaturtle.png", on:[
+      1, 2, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 24, 25,
+      26, 30]},
+    "mid-kuku-down":{name:"たからばこ", file:"art/mid-kuku-down/treasure.png", on:[
+      9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33, 34,
+      35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
+    "boss-kuku-down":{name:"シャチ", file:"art/boss-kuku-down/orca.png", on:[
+      15, 24, 25, 27, 31, 32, 33, 34, 35, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47,
+      48, 50, 51, 52, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 70, 71, 72, 73,
+      74, 75, 76, 86, 87]},
+    "easy-kuku-mix":{name:"アヒルのおもちゃ", file:"art/easy-kuku-mix/duck.png", on:[
+      2, 7, 8, 9, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 31,
+      32, 33]},
+    "mid-kuku-mix":{name:"メリーゴーラウンド", file:"art/mid-kuku-mix/carousel.png", on:[
+      11, 12, 17, 18, 19, 20, 21, 22, 25, 27, 28, 29, 30, 33, 35, 36, 38, 41, 42, 43,
+      44, 45, 46, 49, 50, 51, 52, 53, 54, 57, 58, 59, 60, 61]},
+    "boss-kuku-mix":{name:"しょうぼうしゃ", file:"art/boss-kuku-mix/firetruck.png", on:[
+      12, 21, 22, 23, 24, 25, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47,
+      48, 51, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72, 74,
+      75, 76, 77, 78, 84]},
   },
   5:{
     "easy":{name:"ペンギン", file:"art/easy/penguin.png", on:[
@@ -312,6 +508,36 @@ const ART = {
       14, 15, 16, 24, 25, 26, 27, 32, 34, 35, 36, 42, 43, 44, 45, 46, 47, 51, 52, 53,
       54, 55, 56, 57, 58, 60, 61, 62, 63, 64, 65, 66, 67, 68, 72, 73, 74, 75, 76, 78,
       82, 85, 86, 88, 95]},
+    "easy-kuku-up":{name:"にじ", file:"art/easy-kuku-up/rainbow.png", on:[
+      7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+      28, 29]},
+    "mid-kuku-up":{name:"ぼうえんきょう", file:"art/mid-kuku-up/telescope.png", on:[
+      5, 6, 11, 12, 13, 14, 15, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29,
+      35, 36, 42, 43, 44, 45, 50, 51, 52, 53, 57, 58, 61, 62]},
+    "boss-kuku-up":{name:"ジェットき", file:"art/boss-kuku-up/jet.png", on:[
+      18, 27, 28, 31, 32, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47, 48, 52, 53, 54,
+      55, 56, 57, 58, 59, 61, 62, 63, 64, 65, 66, 67, 71, 72, 73, 74, 75, 76, 77, 78,
+      79, 80, 81, 82, 88]},
+    "easy-kuku-down":{name:"フグ", file:"art/easy-kuku-down/pufferfish.png", on:[
+      2, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26, 27,
+      28, 32]},
+    "mid-kuku-down":{name:"いかり", file:"art/mid-kuku-down/anchor.png", on:[
+      3, 4, 11, 12, 17, 18, 19, 20, 21, 26, 27, 28, 29, 32, 33, 35, 36, 38, 39, 40,
+      41, 43, 44, 45, 46, 47, 49, 50, 51, 52, 53, 54, 59, 60]},
+    "boss-kuku-down":{name:"チョウチンアンコウ", file:"art/boss-kuku-down/anglerfish.png", on:[
+      23, 24, 25, 26, 32, 33, 34, 35, 36, 38, 41, 42, 43, 44, 45, 46, 47, 48, 51, 52,
+      53, 54, 55, 56, 57, 58, 59, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75,
+      76, 83, 84, 85, 86]},
+    "easy-kuku-mix":{name:"ビーチボール", file:"art/easy-kuku-mix/beachball.png", on:[
+      2, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27,
+      28, 32]},
+    "mid-kuku-mix":{name:"ドールハウス", file:"art/mid-kuku-mix/dollhouse.png", on:[
+      10, 11, 12, 13, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33, 34, 35, 36,
+      37, 38, 41, 42, 43, 44, 45, 46, 49, 50, 51, 52, 53, 54]},
+    "boss-kuku-mix":{name:"ショベルカー", file:"art/boss-kuku-mix/excavator.png", on:[
+      12, 13, 22, 23, 24, 25, 31, 32, 34, 35, 36, 37, 41, 44, 45, 46, 47, 48, 51, 52,
+      54, 55, 56, 57, 58, 61, 62, 64, 65, 66, 67, 68, 71, 72, 73, 74, 75, 76, 77, 78,
+      84, 85, 86, 87, 88]},
   },
   6:{
     "easy":{name:"ゾウ", file:"art/easy/elephant.png", on:[
@@ -334,6 +560,36 @@ const ART = {
       14, 15, 22, 23, 24, 25, 26, 27, 31, 32, 33, 34, 35, 36, 37, 41, 42, 43, 44, 45,
       46, 47, 48, 51, 52, 53, 54, 55, 56, 58, 61, 62, 63, 64, 65, 66, 67, 68, 72, 73,
       76, 82, 83, 86, 87]},
+    "easy-kuku-up":{name:"うちゅうじん", file:"art/easy-kuku-up/alien.png", on:[
+      1, 2, 3, 4, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28,
+      32, 33]},
+    "mid-kuku-up":{name:"パラシュート", file:"art/mid-kuku-up/parachute.png", on:[
+      3, 4, 5, 9, 10, 11, 12, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26,
+      27, 28, 29, 30, 31, 33, 34, 36, 37, 38, 51, 52, 59, 60]},
+    "boss-kuku-up":{name:"たんさしゃ", file:"art/boss-kuku-up/rover.png", on:[
+      12, 13, 14, 17, 18, 23, 27, 28, 33, 35, 37, 42, 43, 44, 45, 46, 47, 52, 53, 54,
+      55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 74, 75, 76, 77,
+      78, 79, 85, 86, 87]},
+    "easy-kuku-down":{name:"ヒトデ", file:"art/easy-kuku-down/starfish.png", on:[
+      2, 3, 8, 9, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 25, 26, 27, 28, 30, 31,
+      34, 35]},
+    "mid-kuku-down":{name:"ウミウシ", file:"art/mid-kuku-down/seaslug.png", on:[
+      9, 10, 11, 17, 18, 19, 21, 25, 26, 27, 28, 29, 30, 32, 33, 34, 35, 36, 37, 38,
+      40, 41, 42, 43, 44, 45, 46, 47, 50, 51, 52, 53, 54, 60]},
+    "boss-kuku-down":{name:"ダイオウグソクムシ", file:"art/boss-kuku-down/isopod.png", on:[
+      14, 15, 16, 17, 23, 24, 25, 26, 27, 28, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43,
+      44, 45, 46, 47, 48, 51, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67,
+      68, 71, 72, 75, 76]},
+    "easy-kuku-mix":{name:"もくば", file:"art/easy-kuku-mix/rockinghorse.png", on:[
+      1, 7, 8, 13, 14, 15, 16, 17, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 31, 32,
+      33, 34]},
+    "mid-kuku-mix":{name:"びっくりばこ", file:"art/mid-kuku-mix/jackbox.png", on:[
+      2, 3, 4, 5, 10, 11, 12, 13, 18, 19, 20, 21, 22, 26, 27, 28, 29, 34, 35, 36,
+      37, 41, 42, 43, 44, 45, 49, 50, 51, 52, 53, 58, 59, 60]},
+    "boss-kuku-mix":{name:"パトカー", file:"art/boss-kuku-mix/policecar.png", on:[
+      14, 15, 16, 23, 24, 25, 26, 27, 33, 34, 35, 36, 37, 38, 42, 43, 45, 46, 47, 48,
+      51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72,
+      73, 74, 75, 76, 86]},
   },
   7:{
     "easy":{name:"パンダ", file:"art/easy/panda.png", on:[
@@ -356,6 +612,36 @@ const ART = {
       3, 4, 12, 13, 14, 17, 22, 23, 24, 26, 27, 32, 33, 34, 35, 36, 37, 43, 44, 47,
       53, 54, 55, 56, 57, 62, 63, 64, 65, 66, 67, 68, 72, 74, 75, 76, 77, 78, 81, 82,
       84, 85, 87, 91, 94]},
+    "easy-kuku-up":{name:"たいよう", file:"art/easy-kuku-up/sun.png", on:[
+      2, 3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 25, 26, 27,
+      28, 32]},
+    "mid-kuku-up":{name:"プロペラき", file:"art/mid-kuku-up/propplane.png", on:[
+      11, 12, 14, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 31, 33, 34,
+      35, 36, 37, 38, 40, 41, 42, 43, 44, 45, 46, 47, 51, 52]},
+    "boss-kuku-up":{name:"ワシ", file:"art/boss-kuku-up/eagle.png", on:[
+      11, 18, 20, 21, 22, 24, 25, 27, 28, 31, 32, 33, 34, 35, 37, 38, 41, 42, 43, 44,
+      45, 46, 47, 48, 51, 52, 53, 54, 55, 56, 57, 58, 63, 64, 65, 66, 73, 74, 75, 76,
+      82, 83, 85, 86, 87]},
+    "easy-kuku-down":{name:"カニ", file:"art/easy-kuku-down/crab.png", on:[
+      6, 7, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27,
+      28, 29]},
+    "mid-kuku-down":{name:"エンゼルフィッシュ", file:"art/mid-kuku-down/angelfish.png", on:[
+      4, 5, 11, 12, 13, 17, 18, 19, 20, 21, 25, 26, 27, 28, 29, 30, 31, 33, 34, 35,
+      36, 37, 38, 39, 42, 43, 44, 45, 46, 50, 51, 52, 53, 61]},
+    "boss-kuku-down":{name:"カジキ", file:"art/boss-kuku-down/marlin.png", on:[
+      3, 4, 13, 14, 18, 19, 23, 24, 25, 26, 27, 28, 32, 33, 34, 35, 36, 37, 42, 43,
+      44, 45, 46, 47, 50, 51, 52, 53, 54, 55, 56, 57, 60, 61, 62, 63, 64, 66, 67, 71,
+      77, 80, 81, 90, 91]},
+    "easy-kuku-mix":{name:"たいこ", file:"art/easy-kuku-mix/drum.png", on:[
+      3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27,
+      28, 32]},
+    "mid-kuku-mix":{name:"かんらんしゃ", file:"art/mid-kuku-mix/ferris.png", on:[
+      3, 4, 9, 11, 12, 14, 17, 18, 19, 20, 21, 22, 25, 27, 28, 30, 33, 35, 36, 38,
+      41, 42, 43, 44, 45, 46, 50, 51, 52, 53, 58, 59, 60, 61]},
+    "boss-kuku-mix":{name:"モンスタートラック", file:"art/boss-kuku-mix/monstertruck.png", on:[
+      14, 23, 24, 25, 26, 31, 32, 33, 34, 35, 36, 37, 41, 42, 43, 44, 45, 46, 47, 48,
+      51, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 68, 71, 73, 74, 75,
+      76, 77, 78, 84, 85]},
   },
   8:{
     "easy":{name:"いぬ", file:"art/easy/dog.png", on:[
@@ -378,6 +664,36 @@ const ART = {
       13, 14, 16, 21, 22, 23, 24, 25, 26, 32, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44,
       45, 46, 47, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 72, 73, 74,
       75, 76, 77, 82, 86]},
+    "easy-kuku-up":{name:"かみひこうき", file:"art/easy-kuku-up/paperplane.png", on:[
+      5, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 19, 20, 21, 22, 23, 25, 26, 27,
+      28, 34]},
+    "mid-kuku-up":{name:"ひこうせん", file:"art/mid-kuku-up/airship.png", on:[
+      10, 11, 12, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+      31, 32, 33, 34, 35, 36, 37, 38, 39, 42, 43, 44, 51, 52]},
+    "boss-kuku-up":{name:"いんせき", file:"art/boss-kuku-up/meteor.png", on:[
+      17, 23, 24, 25, 26, 27, 28, 33, 34, 35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 47,
+      51, 52, 53, 54, 55, 56, 57, 58, 61, 62, 63, 64, 65, 66, 67, 71, 72, 73, 74, 75,
+      76, 82, 83, 84, 85]},
+    "easy-kuku-down":{name:"イルカ", file:"art/easy-kuku-down/dolphin.png", on:[
+      1, 2, 3, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 19, 20, 21, 22, 28, 29, 33,
+      34, 35]},
+    "mid-kuku-down":{name:"マンタ", file:"art/mid-kuku-down/manta.png", on:[
+      0, 3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23,
+      25, 26, 27, 28, 29, 30, 34, 35, 36, 37, 43, 44, 52, 60]},
+    "boss-kuku-down":{name:"ウツボ", file:"art/boss-kuku-down/moray.png", on:[
+      16, 22, 23, 24, 26, 27, 28, 31, 32, 33, 34, 35, 38, 41, 42, 43, 44, 45, 46, 47,
+      48, 51, 52, 53, 54, 55, 56, 57, 58, 63, 64, 65, 66, 67, 68, 73, 74, 75, 76, 77,
+      78, 84, 85, 86, 87]},
+    "easy-kuku-mix":{name:"ヨーヨー", file:"art/easy-kuku-mix/yoyo.png", on:[
+      2, 3, 6, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 25, 26,
+      27, 28]},
+    "mid-kuku-mix":{name:"パズルキューブ", file:"art/mid-kuku-mix/puzzlecube.png", on:[
+      9, 10, 11, 12, 13, 14, 17, 18, 19, 20, 21, 22, 25, 26, 27, 28, 29, 30, 33, 34,
+      35, 36, 37, 38, 41, 42, 43, 44, 45, 46, 50, 51, 52, 53]},
+    "boss-kuku-mix":{name:"クレーンしゃ", file:"art/boss-kuku-mix/cranetruck.png", on:[
+      1, 11, 12, 23, 24, 34, 35, 45, 46, 47, 51, 52, 53, 54, 55, 56, 57, 58, 61, 62,
+      63, 64, 65, 66, 67, 68, 70, 71, 72, 73, 74, 75, 76, 77, 78, 81, 82, 83, 84, 85,
+      86, 87, 88, 89, 94]},
   },
   9:{
     "easy":{name:"ひよこ", file:"art/easy/chick.png", on:[
@@ -394,12 +710,38 @@ const ART = {
       2, 3, 4, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 25, 26, 27, 28, 31, 32,
       33, 34]},
     "mid-kuku":{name:"ゆきおとこ", file:"art/mid-kuku/yeti.png", on:[
-      10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 30, 33, 34,
+      10, 11, 12, 13, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 34,
       35, 36, 37, 38, 42, 43, 44, 45, 50, 51, 52, 53, 58, 61]},
     "boss-kuku":{name:"ふうじん", file:"art/boss-kuku/fujin.png", on:[
       13, 14, 15, 16, 17, 22, 23, 24, 25, 26, 27, 28, 32, 33, 34, 35, 36, 37, 38, 42,
       43, 44, 45, 46, 47, 48, 52, 53, 54, 55, 56, 57, 62, 63, 64, 65, 66, 67, 72, 73,
       74, 75, 76, 77, 87]},
+    "easy-kuku-up":{name:"UFO", file:"art/easy-kuku-up/ufo.png", on:[
+      2, 3, 7, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26,
+      27, 28]},
+    "mid-kuku-up":{name:"ヘリコプター", file:"art/mid-kuku-up/helicopter.png", on:[
+      8, 9, 10, 11, 12, 13, 14, 18, 19, 20, 22, 25, 26, 27, 28, 29, 30, 31, 32, 33,
+      34, 35, 36, 37, 40, 41, 42, 43, 44, 49, 50, 51, 52, 53]},
+    "boss-kuku-up":{name:"ドローン", file:"art/boss-kuku-up/drone.png", on:[
+      12, 16, 21, 22, 26, 27, 28, 31, 32, 33, 34, 35, 36, 37, 38, 39, 43, 44, 45, 46,
+      47, 50, 51, 53, 54, 55, 56, 61, 62, 63, 64, 65, 66, 67, 68, 71, 72, 73, 76, 77,
+      78, 81, 82, 87, 88]},
+    "easy-kuku-down":{name:"クマノミ", file:"art/easy-kuku-down/clownfish.png", on:[
+      3, 8, 9, 10, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 25, 26, 27, 28,
+      29, 33]},
+    "mid-kuku-down":{name:"ボトルシップ", file:"art/mid-kuku-down/bottleship.png", on:[
+      10, 11, 16, 17, 18, 19, 20, 21, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35,
+      36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 49, 50, 51, 52]},
+    "boss-kuku-down":{name:"シーラカンス", file:"art/boss-kuku-down/coelacanth.png", on:[
+      24, 25, 27, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48,
+      49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 61, 62, 63, 64, 65, 66, 67, 68, 69,
+      73, 74, 75, 76, 77]},
+    "easy-kuku-mix":{name:"ひつじのぬいぐるみ", file:"art/easy-kuku-mix/sheep.png", on:[
+      2, 6, 7, 8, 9, 10, 13, 14, 15, 16, 19, 20, 21, 22, 23, 25, 26, 27, 28, 29,
+      31, 33]},
+    "mid-kuku-mix":{name:"マトリョーシカ", file:"art/mid-kuku-mix/matryoshka.png", on:[
+      3, 4, 10, 11, 12, 13, 18, 19, 20, 21, 26, 27, 28, 29, 33, 34, 35, 36, 37, 38,
+      41, 42, 43, 44, 45, 46, 50, 51, 52, 53, 58, 59, 60, 61]},
   },
 };
 /* ART-END */
@@ -515,6 +857,39 @@ function clearedDansOf(cleared, lvKey){
   }
   return out;
 }
+/* 絵のセットが 8だんぶん そろっているか。
+   そろっていなくても あそべる（artOf が 代わりの絵を出す）。「※え は じゅんびちゅう」の しらせに だけ つかう */
+function artReady(key){ return DANS.every(n => ART[n] && ART[n][key]); }
+/* 絵を引く。まだ 描けていない セットは 自由の九九モード → ふつう の絵で 代わりに出す。
+   ⚠️ 絵を足している途中でも あそべるようにするため。
+      絵がそろえば ここは 何もしなくても 本物に切りかわる（2026-09-10／2026-09-16） */
+function artOf(n, key){
+  const a = ART[n] || {}, base = baseLvOf(key);
+  return a[key] || a[base + KUKU] || a[base] || a.boss;
+}
+/* 順番モードの「唱えの じゅんばん」。×1〜×9 を 0〜8 で あらわして、per しゅうぶん ならべる。
+   1しゅうで こたえを 1まいずつ めくる＝はじめ 2しゅう／まんなか 3しゅう／ボス 4しゅう 唱える。
+   バラバラは しゅうごとに まぜなおす（つなぎめで 同じ唱えが 2かい つづかないようにする）。 */
+function orderSeq(mode, per, rnd){
+  const up = [0,1,2,3,4,5,6,7,8];
+  const out = [];
+  for(let r=0; r<per; r++){
+    if(mode === 'down') out.push(...up.slice().reverse());
+    else if(mode === 'mix'){
+      let round = shuffled(up, rnd);
+      for(let t=0; t<20 && out.length && round[0] === out[out.length-1]; t++) round = shuffled(up, rnd);
+      out.push(...round);
+    } else out.push(...up);
+  }
+  return out;
+}
+/* 順番モードで いま めくってよい こたえ。めくった まいすうが そのまま「なんばんめか」になる。
+   ぜんぶ おわったら -1 */
+function orderTarget(seq, openedCount, n){
+  return openedCount < seq.length ? n * (seq[openedCount] + 1) : -1;
+}
+/* 順番モードの タップ判定。いまの唱えの こたえ だけが ok（段の こたえでも じゅんばん ちがいは おてつき） */
+function orderTapKind(v, target){ return (target > 0 && v === target) ? 'ok' : 'miss'; }
 /* ばんめんのロック。1つ前のレベルの 8だん ぜんぶを かんせいさせると ひらく。
    {open: ひらいているか, prev: 1つ前のレベルの名前, left: あと何だんで ひらくか} */
 function lockOf(lvKey, cleared){
@@ -569,6 +944,7 @@ const state = {};
 let dan = DANS.includes(3) ? 3 : DANS[0];
 let lv = 'easy';            /* さいしょは いちばん小さい盤面から */
 let kuku = false;           /* 九九モード（こたえのかわりに ひらがなの唱えが出る） */
+let kmode = 'free';         /* 九九モードの しゅるい（自由／上がり／下がり／バラバラ）。紫のボタンを けしても おぼえておく */
 /* 帯（こたえの一覧）を出すか。レベルごとの はじめの状態は LEVELS の band。
    ボタンを押したぶんだけ ここに覚えて、そのレベルの はじめの状態より優先する。
    ボス＝ふだん見えない→「さくせん」で出す／はじめ・まんなか＝ふだん見える→「かくす」で消す
@@ -579,7 +955,9 @@ function L(){ return LV[lv]; }
 function bandOn(){ return lv in bandPick ? bandPick[lv] : L().band; }
 /* 絵のセットのキー。盤面と記録は「絵のセット × 段」ごとに 別々に持つので、
    ふつうのモードで作りかけの盤面は 九九モードに入っても そのまま残る。 */
-function akey(){ return artKeyOf(lv, kuku); }
+function akey(){ return artKeyOf(lv, kuku ? kmode : null); }
+/* いま 唱えの じゅんばんを まもらせているか（上がり・下がり・バラバラ） */
+function ordered(){ return kuku && isOrdered(kmode); }
 function skey(){ return akey() + ':' + dan; }
 
 const boardEl = document.getElementById('board');
@@ -607,11 +985,19 @@ function buildCells(size){
   }
 }
 
+/* 順番モードだけ 唱えの じゅんばん（0〜8）を つくる。ほかの モードは なし */
+function makeSeq(l, key){
+  const mode = kukuModeOf(key);
+  return isOrdered(mode) ? orderSeq(mode, l.per, Math.random) : null;
+}
 function makeState(n, l, key){
   const on = artOf(n, key).on;
   const nums = buildBoard(n, on, Math.random, l.size, l.per);
-  return { nums, on, goal: goalCells(nums, on, n), opened:new Set(), missed:new Set(), done:false, yomi:0 };
+  return { nums, on, goal: goalCells(nums, on, n), opened:new Set(), missed:new Set(), done:false, yomi:0,
+           seq: makeSeq(l, key) };
 }
+/* 順番モードで いま めくってよい こたえ（めくった まいすう＝なんばんめか）。順番モードでなければ -1 */
+function curTarget(s){ return ordered() && s.seq ? orderTarget(s.seq, s.opened.size, dan) : -1; }
 function cur(){ const k = skey(); if(!state[k]) state[k] = makeState(dan, L(), akey()); return state[k]; }
 
 function paintCell(i){
@@ -646,10 +1032,22 @@ function updateYomi(found){
   box.classList.toggle('on', kuku);
   document.getElementById('steps').style.display = kuku ? 'none' : '';
   document.getElementById('hint').style.display  = kuku ? 'none' : '';
+  const t = document.getElementById('yomiTxt'), b = document.getElementById('yomiNext');
+  const r = document.getElementById('yomiRound');
   if(!kuku) return;
   const s = cur();
+  if(ordered()){
+    /* 順番モード：いまの唱えだけ出す。「つぎ」ボタンは ない（めくったら 自動で つぎへ） */
+    const turn = curTarget(s) > 0 ? s.seq[s.opened.size] : -1;
+    b.style.display = 'none';
+    r.style.display = turn < 0 ? 'none' : '';
+    r.textContent = Math.min(Math.floor(s.opened.size/9)+1, L().per) + 'しゅうめ / ' + L().per;
+    t.classList.toggle('done', turn < 0);
+    t.innerHTML = turn < 0 ? 'ぜんぶ みつけた！' : YOMI[dan][turn] + '<span class="dots">…</span>';
+    return;
+  }
+  r.style.display = 'none';
   if(s.yomi >= 0 && found.has(dan*(s.yomi+1))) s.yomi = nextYomi(s.yomi, found, dan);
-  const t = document.getElementById('yomiTxt'), b = document.getElementById('yomiNext');
   /* 出す唱えが なくなったら 「つぎ」は 消す（残しても押せないし 場所を取るだけ） */
   t.classList.toggle('done', s.yomi < 0);
   b.style.display = s.yomi < 0 ? 'none' : '';
@@ -676,19 +1074,24 @@ function render(){
     p.classList.toggle('locked', !lockOf(p.dataset.lv, cleared).open);
   });
   document.getElementById('kuku').classList.toggle('on', kuku);
+  /* 九九モードの ときだけ しゅるいを えらべる */
+  document.getElementById('kmodes').style.display = kuku ? '' : 'none';
+  document.querySelectorAll('#kmodes .pill').forEach(p=> p.classList.toggle('on', p.dataset.km === kmode));
   document.querySelectorAll('#dans .pill').forEach(p=>{
     p.classList.toggle('on', +p.dataset.n === dan);
     p.classList.toggle('cleared', cleared.has(akey()+':'+(+p.dataset.n)));
   });
   document.getElementById('collectLbl').textContent =
-    'あつめた え（'+l.label+(kuku ? '・九九' : '')+'）'+(kuku && !artReady(akey()) ? '　※え は じゅんびちゅう' : '');
+    'あつめた え（'+setLabelOf(akey())+'）'+(artReady(akey()) ? '' : '　※え は じゅんびちゅう');
   const msg = document.getElementById('doneMsg'), cc = document.getElementById('collectCard');
   if(s.done){
     const perfect = s.missed.size === 0;
     document.getElementById('bt').textContent = perfect ? (art.name+' かんせい！') : (art.name+' が でた');
     document.getElementById('bk').textContent = perfect
       ? 'めくったのは ぜんぶ '+dan+'のだん の こたえ（'+answersOf(dan).join('・')+'）'
-      : 'おてつき '+s.missed.size+'こ。はいいろ の ところは '+dan+'のだん の こたえ じゃ なかったよ';
+      : ordered()
+        ? 'おてつき '+s.missed.size+'こ。はいいろ の ところは じゅんばん が ちがったよ'
+        : 'おてつき '+s.missed.size+'こ。はいいろ の ところは '+dan+'のだん の こたえ じゃ なかったよ';
     msg.classList.add('show'); cc.classList.add('hit');
   } else { msg.classList.remove('show'); cc.classList.remove('hit'); }
   renderCollect();
@@ -713,8 +1116,13 @@ function finish(){
 function tap(i){
   const s = cur();
   if(s.done) return;
-  if(s.opened.has(i) || s.missed.has(i)) return;
-  const kind = tapKind(s.nums[i], dan);
+  if(s.opened.has(i)) return;
+  const target = curTarget(s);
+  /* 順番モードでは じゅんばん ちがいで 灰色に なった こたえも、その唱えの 番が来たら めくれる
+     （めくれないと 盤面が かんせい しなくなる）。おてつきの きろくは けさない */
+  const retry = ordered() && s.missed.has(i) && s.nums[i] === target;
+  if(s.missed.has(i) && !retry) return;
+  const kind = ordered() ? orderTapKind(s.nums[i], target) : tapKind(s.nums[i], dan);
   const before = foundNumbers(s.nums, s.opened, dan);
   if(kind === 'ok'){
     s.opened.add(i); paintCell(i);
@@ -748,14 +1156,7 @@ function say(msg){
 }
 function sayLock(k){ say(k.prev+' を ぜんぶ かんせい させると あくよ（あと '+k.left+'だん）'); }
 
-/* 絵のセットが 8だんぶん そろっているか。
-   ⚠️ そろっていないセットに入ると 盤面が作れずに 止まってしまうので、
-      入口の手前で ことわる（絵を足している途中でも アプリは こわれない） */
-function artReady(key){ return DANS.every(n => ART[n] && ART[n][key]); }
-/* まだ描けていない絵は、同じレベルの ふつうの絵で 代わりに出す。
-   ⚠️ 絵を足している途中でも 九九モードで あそべるようにするため。
-      絵がそろえば ここは 何もしなくても 本物に切りかわる（2026-09-10） */
-function artOf(n, key){ return (ART[n] && ART[n][key]) || ART[n][baseLvOf(key)]; }
+/* artReady・artOf は @pure-start〜@pure-end の中に うつした（テストで たしかめるため） */
 
 const lvsEl = document.getElementById('lvs');
 LEVELS.forEach(l=>{
@@ -777,10 +1178,20 @@ DANS.forEach(n=>{
   dansEl.appendChild(b);
 });
 document.getElementById('reset').onclick = ()=>{
-  const s = cur(); s.opened.clear(); s.missed.clear(); s.done = false; render();
+  const s = cur(); s.opened.clear(); s.missed.clear(); s.done = false;
+  /* バラバラは はじめから やるときも じゅんばんを まぜなおす */
+  if(kukuModeOf(akey()) === 'mix') s.seq = makeSeq(L(), akey());
+  render();
 };
 document.getElementById('again').onclick = ()=>{ state[skey()] = makeState(dan, L(), akey()); render(); };
 document.getElementById('kuku').onclick = ()=>{ kuku = !kuku; render(); };
+const kmodesEl = document.getElementById('kmodes');
+KUKU_MODES.forEach(m=>{
+  const b = document.createElement('button');
+  b.className='pill km'; b.dataset.km=m.key; b.textContent = m.label; b.type='button';
+  b.onclick = ()=>{ kmode = m.key; render(); };
+  kmodesEl.appendChild(b);
+});
 document.getElementById('yomiNext').onclick = ()=>{
   const s = cur();
   s.yomi = nextYomi(s.yomi, foundNumbers(s.nums, s.opened, dan), dan);

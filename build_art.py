@@ -77,7 +77,102 @@ LEVELS = [
         (8, "raijin",  "らいじん"),
         (9, "fujin",   "ふうじん"),
     ]),
+    # 九九モードの じゅんばん版（2026-09-16）。「-kuku-up」＝上がり（そら・うちゅう）
+    ("easy-kuku-up", 6, 22, [
+        (2, "star",       "ほし"),
+        (3, "moon",       "つき"),
+        (4, "cloud",      "くも"),
+        (5, "rainbow",    "にじ"),
+        (6, "alien",      "うちゅうじん"),
+        (7, "sun",        "たいよう"),
+        (8, "paperplane", "かみひこうき"),
+        (9, "ufo",        "UFO"),
+    ]),
+    ("mid-kuku-up", 8, 34, [
+        (2, "saturn",       "どせい"),
+        (3, "shootingstar", "ながれぼし"),
+        (4, "earth",        "ちきゅう"),
+        (5, "telescope",    "ぼうえんきょう"),
+        (6, "parachute",    "パラシュート"),
+        (7, "propplane",    "プロペラき"),
+        (8, "airship",      "ひこうせん"),
+        (9, "helicopter",   "ヘリコプター"),
+    ]),
+    ("boss-kuku-up", 10, 45, [
+        (2, "astronaut", "うちゅうひこうし"),
+        (3, "station",   "うちゅうステーション"),
+        (4, "satellite", "じんこうえいせい"),
+        (5, "jet",       "ジェットき"),
+        (6, "rover",     "たんさしゃ"),
+        (7, "eagle",     "ワシ"),
+        (8, "meteor",    "いんせき"),
+        (9, "drone",     "ドローン"),
+    ]),
+    # 「-kuku-down」＝下がり（うみのそこ）
+    ("easy-kuku-down", 6, 22, [
+        (2, "jellyfish", "クラゲ"),
+        (3, "octopus",   "タコ"),
+        (4, "seaturtle", "ウミガメ"),
+        (5, "pufferfish","フグ"),
+        (6, "starfish",  "ヒトデ"),
+        (7, "crab",      "カニ"),
+        (8, "dolphin",   "イルカ"),
+        (9, "clownfish", "クマノミ"),
+    ]),
+    ("mid-kuku-down", 8, 34, [
+        (2, "seahorse",   "タツノオトシゴ"),
+        (3, "coral",      "さんご"),
+        (4, "treasure",   "たからばこ"),
+        (5, "anchor",     "いかり"),
+        (6, "seaslug",    "ウミウシ"),
+        (7, "angelfish",  "エンゼルフィッシュ"),
+        (8, "manta",      "マンタ"),
+        (9, "bottleship", "ボトルシップ"),
+    ]),
+    ("boss-kuku-down", 10, 45, [
+        (2, "submarine",  "せんすいかん"),
+        (3, "whale",      "クジラ"),
+        (4, "orca",       "シャチ"),
+        (5, "anglerfish", "チョウチンアンコウ"),
+        (6, "isopod",     "ダイオウグソクムシ"),
+        (7, "marlin",     "カジキ"),
+        (8, "moray",      "ウツボ"),
+        (9, "coelacanth", "シーラカンス"),
+    ]),
+    # 「-kuku-mix」＝バラバラ（おもちゃばこ）
+    ("easy-kuku-mix", 6, 22, [
+        (2, "blocks",       "つみき"),
+        (3, "top",          "こま"),
+        (4, "duck",         "アヒルのおもちゃ"),
+        (5, "beachball",    "ビーチボール"),
+        (6, "rockinghorse", "もくば"),
+        (7, "drum",         "たいこ"),
+        (8, "yoyo",         "ヨーヨー"),
+        (9, "sheep",        "ひつじのぬいぐるみ"),
+    ]),
+    ("mid-kuku-mix", 8, 34, [
+        (2, "musicbox",   "オルゴール"),
+        (3, "kendama",    "けんだま"),
+        (4, "carousel",   "メリーゴーラウンド"),
+        (5, "dollhouse",  "ドールハウス"),
+        (6, "jackbox",    "びっくりばこ"),
+        (7, "ferris",     "かんらんしゃ"),
+        (8, "puzzlecube", "パズルキューブ"),
+        (9, "matryoshka", "マトリョーシカ"),
+    ]),
+    ("boss-kuku-mix", 10, 45, [
+        (2, "shinkansen",   "しんかんせん"),
+        (3, "steamloco",    "きかんしゃ"),
+        (4, "firetruck",    "しょうぼうしゃ"),
+        (5, "excavator",    "ショベルカー"),
+        (6, "policecar",    "パトカー"),
+        (7, "monstertruck", "モンスタートラック"),
+        (8, "cranetruck",   "クレーンしゃ"),
+        (9, "motorbike",    "オートバイ"),
+    ]),
 ]
+# 絵がまだ描けていなくても 段ごと消さずに進めてよい絵のセット（アプリ側は artOf で「九九（自由）」の絵に代用する）
+OPTIONAL = {k for k, _, _, _ in LEVELS if k.count("-") >= 2}
 DANS = [2, 3, 4, 5, 6, 7, 8, 9]
 
 def normalize(p: Path):
@@ -184,7 +279,8 @@ def main():
         for dan, file, name in plan:
             src = ART / key / f"{file}.png"
             if not src.exists():
-                report.append(f"  !! {key} {dan}のだん {file}.png がない")
+                if key not in OPTIONAL:
+                    report.append(f"  !! {key} {dan}のだん {file}.png がない")
                 continue
             im = normalize(src)
             im.save(src)                       # 整えたものを上書き保存
@@ -194,7 +290,12 @@ def main():
             art[dan][key] = (name, f"art/{key}/{file}.png", on)
             report.append(f"  {key:9s} {dan}のだん {name:8s} さいごのマスの濃さ {score[n_cells-1][0]:.3f}")
 
-    ready = [n for n in DANS if len(art[n]) == len(LEVELS)]
+    must = [k for k, _, _, _ in LEVELS if k not in OPTIONAL]
+    ready = [n for n in DANS if all(k in art[n] for k in must)]
+    for k in OPTIONAL:
+        lack = [n for n in ready if k not in art[n]]
+        if lack:
+            report.append(f"  .. {k} は {lack}のだん の絵がまだ（アプリは 九九（自由）の絵で代用する）")
     missing = [n for n in DANS if n not in ready]
     if missing:
         report.append(f"  !! そろっていないので とばした段: {missing}")
@@ -211,6 +312,8 @@ def main():
     for dan in ready:
         lines.append(f"  {dan}:{{")
         for key, _, _, _ in LEVELS:
+            if key not in art[dan]:
+                continue
             name, path, on = art[dan][key]
             lines.append(f'    "{key}":{{name:"{name}", file:"{path}", on:[\n      {fmt(on, 6)}]}},')
         lines.append("  },")
@@ -223,6 +326,8 @@ def main():
     for dan in ready:
         tslines.append(f"  {dan}: {{")
         for key, _, _, _ in LEVELS:
+            if key not in art[dan]:
+                continue
             name, path, on = art[dan][key]
             tslines.append(f'    "{key}": {{ name: "{name}", file: "/{path}", on: [\n      {fmt(on, 6)}] }},')
         tslines.append("  },")
@@ -245,6 +350,8 @@ def main():
     if pub.parent.exists():
         n_copy = 0
         for key, _, _, _ in LEVELS:
+            if not (ART / key).exists():
+                continue
             dst = pub / key
             dst.mkdir(parents=True, exist_ok=True)
             for src_png in sorted((ART / key).glob("*.png")):
